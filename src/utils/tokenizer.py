@@ -41,7 +41,9 @@ class Tokenizer(nn.Module):
         return self.forward(torch.zeros((1, n_channels, height, width))).shape[1]
 
     def forward(self, x):
-        return self.flattener(self.conv_layers(x)).transpose(-2, -1)
+        x =  self.flattener(self.conv_layers(x)).transpose(-2, -1)
+        #print(x.shape)
+        return x
 
     @staticmethod
     def init_weight(m):
