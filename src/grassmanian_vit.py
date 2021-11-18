@@ -1,11 +1,9 @@
-import torch
 import torch.nn as nn
-from einops.layers.torch import Rearrange
 from torch.hub import load_state_dict_from_url
 
+from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
 from .utils.helpers import pe_check
 from .utils.tokenizer import Tokenizer
-from .utils.grassmanian_models import GrassmanianformerClassifier,NonTrainableObsMatrixModule,ObsMatrixTokenizer
 
 try:
     from timm.models.registry import register_model
@@ -15,7 +13,6 @@ except ImportError:
 model_urls = {
 }
 
-from src.utils.lds import batch_image_to_Om
 
 class GrassmanianViTLite(nn.Module):
     def __init__(self,
@@ -46,14 +43,16 @@ class GrassmanianViTLite(nn.Module):
                                    conv_bias=True)
         self.m = 4
         self.lds_order = 4
-        self.om_layer = nn.Sequential(ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size,m=self.m,lds_size=self.lds_order),nn.Linear(self.m*self.lds_order**2, embedding_dim))
-        #self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
+        self.om_layer = nn.Sequential(
+            ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m, lds_size=self.lds_order),
+            nn.Linear(self.m * self.lds_order ** 2, embedding_dim))
+        # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
         self.classifier = GrassmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
                                                            width=img_size),
             embedding_dim=embedding_dim,
-            seq_pool=True,
+            seq_pool=False,
             dropout=dropout,
             attention_dropout=attention_dropout,
             stochastic_depth=stochastic_depth,
@@ -65,18 +64,16 @@ class GrassmanianViTLite(nn.Module):
         )
 
     def forward(self, x):
-
-
-        #print(om.shape)
+        # print(om.shape)
         x = self.tokenizer(x)
-        #print(x.shape)
+        # print(x.shape)
         om = self.om_layer(x)
-        print(x.shape, om.shape)
-        #print(om.shape)
-        #x  = self.tokenizer(x)sss
-        #om = self.project(om)
+        # print(x.shape, om.shape)
+        # print(om.shape)
+        # x  = self.tokenizer(x)sss
+        # om = self.project(om)
 
-        return self.classifier(om )
+        return self.classifier(om)
 
 
 def _grassmanian_vit_lite(arch, pretrained, progress,

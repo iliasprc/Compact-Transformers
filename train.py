@@ -15,28 +15,29 @@ NVIDIA CUDA specific speedups adopted from NVIDIA Apex examples
 
 Hacked together by / Copyright 2020 Ross Wightman (https://github.com/rwightman)
 """
+import torch
+import torch.nn as nn
 import argparse
-import time
-import yaml
-import os
 import logging
+import os
+import time
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 
-import torch
-import torch.nn as nn
 import torchvision.utils
-from torch.nn.parallel import DistributedDataParallel as NativeDDP
-
+import yaml
 from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
+from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy, JsdCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, \
     convert_splitbn_model, model_parameters
-from timm.utils import *
-from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy, JsdCrossEntropy
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler
+from timm.utils import *
 from timm.utils import ApexScaler, NativeScaler
+from torch.nn.parallel import DistributedDataParallel as NativeDDP
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 from src import *
 
@@ -50,11 +51,11 @@ except ImportError:
     has_apex = False
 
 has_native_amp = False
-try:
-    if getattr(torch.cuda.amp, 'autocast') is not None:
-        has_native_amp = True
-except AttributeError:
-    pass
+# try:
+#     if getattr(torch.cuda.amp, 'autocast') is not None:
+#         has_native_amp = True
+# except AttributeError:
+#     pass
 
 try:
     import wandb
@@ -250,7 +251,7 @@ parser.add_argument('--log-interval', type=int, default=50, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
-parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
+parser.add_argument('--checkpoint-hist', type=int, default=2, metavar='N',
                     help='number of checkpoints to keep (default: 10)')
 parser.add_argument('-j', '--workers', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 1)')
@@ -581,7 +582,7 @@ def main():
             checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
         with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
-
+    print(model)
     try:
         for epoch in range(start_epoch, num_epochs):
             if args.distributed and hasattr(loader_train.sampler, 'set_epoch'):

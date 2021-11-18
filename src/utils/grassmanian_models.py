@@ -42,7 +42,7 @@ class NonTrainableObsMatrixModule(nn.Module):
 
 
 class ObsMatrixTokenizer(nn.Module):
-    def __init__(self, image_size=224, patch_size=16, channels=3,m=13,lds_size=3):
+    def __init__(self, image_size=224, patch_size=16, channels=3,m=4,lds_size=4,return_gradients=True):
         super().__init__()
         # image_height, image_width = pair(image_size)
         # patch_height, patch_width = pair(patch_size)
@@ -58,12 +58,15 @@ class ObsMatrixTokenizer(nn.Module):
         self.m = m
         self.lds_size = lds_size
         self.num_input_channels = channels
-        self.num_patches = num_patches
-        self.patc_dim = patch_dim
+        self.return_gradients = return_gradients
+
 
     def forward(self, x):
-
-        x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m, num_channels=self.num_input_channels)
+        if self.return_gradients:
+            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
+        else:
+            with torch.no_grad():
+                x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
         return x
 
 

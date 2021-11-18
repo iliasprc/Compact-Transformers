@@ -11,21 +11,24 @@ except ImportError:
     from .registry import register_model
 
 model_urls = {
-    'cct_7_3x1_32':
+    'cct_7_3x1_32'          :
         'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_3x1_32_cifar10_300epochs.pth',
-    'cct_7_3x1_32_sine':
-        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_3x1_32_sine_cifar10_5000epochs.pth',
-    'cct_7_3x1_32_c100':
-        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_3x1_32_cifar100_300epochs.pth',
+    'cct_7_3x1_32_sine'     :
+        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained'
+        '/cct_7_3x1_32_sine_cifar10_5000epochs.pth',
+    'cct_7_3x1_32_c100'     :
+        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_3x1_32_cifar100_300epochs'
+        '.pth',
     'cct_7_3x1_32_sine_c100':
-        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_3x1_32_sine_cifar100_5000epochs.pth',
-    'cct_7_7x2_224_sine':
+        'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained'
+        '/cct_7_3x1_32_sine_cifar100_5000epochs.pth',
+    'cct_7_7x2_224_sine'    :
         'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_7_7x2_224_flowers102.pth',
-    'cct_14_7x2_224':
+    'cct_14_7x2_224'        :
         'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/pretrained/cct_14_7x2_224_imagenet.pth',
-    'cct_14_7x2_384':
+    'cct_14_7x2_384'        :
         'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/finetuned/cct_14_7x2_384_imagenet.pth',
-    'cct_14_7x2_384_fl':
+    'cct_14_7x2_384_fl'     :
         'http://ix.cs.uoregon.edu/~alih/compact-transformers/checkpoints/finetuned/cct_14_7x2_384_flowers102.pth',
 }
 
@@ -90,7 +93,7 @@ class GrassmanianCCT(nn.Module):
     def forward(self, x):
         x = self.tokenizer(x)
         om = self.om_layer(x)
-        #print(x.shape, om.shape)
+        # print(x.shape, om.shape)
         # print(om.shape)
         # x  = self.tokenizer(x)sss
         # om = self.project(om)

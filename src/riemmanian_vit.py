@@ -1,10 +1,11 @@
-from torch.hub import load_state_dict_from_url
 import torch.nn as nn
-from .utils.transformers import TransformerClassifier
-from .utils.tokenizer import Tokenizer
+from torch.hub import load_state_dict_from_url
+
 from .utils.helpers import pe_check
 from .utils.lds import covariance
 from .utils.riemmanian_utils import RiemmanianformerClassifier
+from .utils.tokenizer import Tokenizer
+
 try:
     from timm.models.registry import register_model
 except ImportError:
@@ -15,7 +16,7 @@ model_urls = {
 
 
 class RiemmanianViTLite(nn.Module):
-    def  __init__(self,
+    def __init__(self,
                  img_size=224,
                  embedding_dim=768,
                  n_input_channels=3,
@@ -41,7 +42,7 @@ class RiemmanianViTLite(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.project = nn.Linear(img_size**2//kernel_size**2,embedding_dim)
+        self.project = nn.Linear(img_size ** 2 // kernel_size ** 2, embedding_dim)
         self.classifier = RiemmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -61,14 +62,14 @@ class RiemmanianViTLite(nn.Module):
     def forward(self, x):
         x = self.tokenizer(x)
         x = covariance(x)
-        #print(x.shape)
+        # print(x.shape)
         x = self.project(x)
         return self.classifier(x)
 
 
 def _riemmanian_vit_lite(arch, pretrained, progress,
-              num_layers, num_heads, mlp_ratio, embedding_dim,
-              kernel_size=4, *args, **kwargs):
+                         num_layers, num_heads, mlp_ratio, embedding_dim,
+                         kernel_size=4, *args, **kwargs):
     model = RiemmanianViTLite(num_layers=num_layers,
                               num_heads=num_heads,
                               mlp_ratio=mlp_ratio,
@@ -86,107 +87,107 @@ def _riemmanian_vit_lite(arch, pretrained, progress,
 
 def riemmanian_vit_2(*args, **kwargs):
     return _riemmanian_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                     *args, **kwargs)
+                                *args, **kwargs)
 
 
 def riemmanian_vit_4(*args, **kwargs):
     return _riemmanian_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                     *args, **kwargs)
+                                *args, **kwargs)
 
 
 def riemmanian_vit_6(*args, **kwargs):
     return _riemmanian_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                     *args, **kwargs)
+                                *args, **kwargs)
 
 
 def riemmanian_vit_7(*args, **kwargs):
     return _riemmanian_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                     *args, **kwargs)
+                                *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_2_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return riemmanian_vit_2('riemmanian_vit_2_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_2_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return riemmanian_vit_2('riemmanian_vit_2_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_4_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return riemmanian_vit_4('riemmanian_vit_4_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_4_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return riemmanian_vit_4('riemmanian_vit_4_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_6_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return riemmanian_vit_6('riemmanian_vit_6_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_6_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return riemmanian_vit_6('riemmanian_vit_6_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_7_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return riemmanian_vit_7('riemmanian_vit_7_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)
 
 
 @register_model
 def riemmanian_vit_7_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return riemmanian_vit_7('riemmanian_vit_7_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                            kernel_size=4,
+                            img_size=img_size, positional_embedding=positional_embedding,
+                            num_classes=num_classes,
+                            *args, **kwargs)

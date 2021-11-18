@@ -1,8 +1,9 @@
-from torch.hub import load_state_dict_from_url
 import torch.nn as nn
-from .utils.transformers import TransformerClassifier
-from .utils.tokenizer import Tokenizer
+from torch.hub import load_state_dict_from_url
+
 from .utils.helpers import pe_check
+from .utils.tokenizer import Tokenizer
+from .utils.transformers import TransformerClassifier
 
 try:
     from timm.models.registry import register_model

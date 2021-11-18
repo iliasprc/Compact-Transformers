@@ -1,10 +1,11 @@
+import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
-import torch
-from .utils.transformers import TransformerClassifier
-from .utils.grassmanian_models import GrassmanianformerClassifier, NonTrainableObsMatrixModule
+
+from .utils.grassmanian_models import ObsMatrixTokenizer
 from .utils.helpers import pe_check
 from .utils.tokenizer import Tokenizer
+from .utils.transformers import TransformerClassifier
 
 try:
     from timm.models.registry import register_model
@@ -42,14 +43,16 @@ class ImGpViTLite(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.om_layer = NonTrainableObsMatrixModule(image_size=img_size, patch_size=kernel_size)
-        self.project = nn.Sequential(nn.Linear(54+embedding_dim, embedding_dim), nn.GELU(), nn.LayerNorm(embedding_dim))
+        self.m = 4
+        self.lds_order = 4
+        self.om_layer = ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size,m=self.m,lds_size=self.lds_order,return_gradients=False)
+        self.project = nn.Sequential(nn.Linear(self.m * self.lds_order ** 2 + embedding_dim, embedding_dim))
         self.classifier = TransformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
                                                            width=img_size),
             embedding_dim=embedding_dim,
-            seq_pool=True,
+            seq_pool=False,
             dropout=dropout,
             attention_dropout=attention_dropout,
             stochastic_depth=stochastic_depth,
@@ -62,14 +65,15 @@ class ImGpViTLite(nn.Module):
 
     def forward(self, x):
         img = self.tokenizer(x)
-        om = self.om_layer(x)
+        #print(img.shape)
+        om = self.om_layer(img)
         # print(om.shape)
         # x = self.tokenizer(x)
         # print(om.shape)
         # x  = self.tokenizer(x)sss
 
-        x = self.project(torch.cat((img,om),dim=-1))
-        #print(x.shape,om.shape,img.shape)
+        x = self.project(torch.cat((img, om), dim=-1))
+        # print(x.shape,om.shape,img.shape)
         # print(x.shape,om.shape)
         return self.classifier(x)
 

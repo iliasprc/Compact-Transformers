@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
-from .utils.grassmanian_models import GrassmanianformerClassifier, NonTrainableObsMatrixModule,ObsMatrixTokenizer
+from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
 from .utils.helpers import pe_check
 from .utils.tokenizer import Tokenizer
 from .utils.transformers import TransformerClassifier
@@ -49,7 +49,7 @@ class ImGpViTLite(nn.Module):
             ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m, lds_size=self.lds_order),
             nn.Linear(self.m * self.lds_order ** 2, embedding_dim))
         # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
-        #self.om_project = nn.Sequential(nn.Linear(54, embedding_dim),nn.LayerNorm(embedding_dim))
+        # self.om_project = nn.Sequential(nn.Linear(54, embedding_dim),nn.LayerNorm(embedding_dim))
         self.om_classifier = GrassmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -63,7 +63,7 @@ class ImGpViTLite(nn.Module):
             mlp_ratio=mlp_ratio,
             num_classes=num_classes,
             positional_embedding=positional_embedding
-            )
+        )
         self.om_classifier.fc = nn.Identity()
         self.img_classifier = TransformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
@@ -80,28 +80,29 @@ class ImGpViTLite(nn.Module):
             num_classes=num_classes,
             positional_embedding=positional_embedding
         )
-        self.img_classifier.fc =  nn.Identity()
-        self.late_fusion_classifier = nn.Sequential(nn.LayerNorm(2*embedding_dim),nn.Linear(2*embedding_dim,num_classes))
-    def forward(self, image):
+        self.img_classifier.fc = nn.Identity()
+        self.late_fusion_classifier = nn.Sequential(nn.LayerNorm(2 * embedding_dim),
+                                                    nn.Linear(2 * embedding_dim, num_classes))
 
+    def forward(self, image):
         x = self.tokenizer(image)
         obs_matrix = self.om_layer(x)
 
-        #print(f' X embed {x.shape}  OBS matrix {obs_matrix.shape}')
+        # print(f' X embed {x.shape}  OBS matrix {obs_matrix.shape}')
         # x = self.tokenizer(x)
         # print(om.shape)
         # x  = self.tokenizer(x)sss
-        #print(img.shape)
+        # print(img.shape)
         img_logits = self.img_classifier(x)
         om_logits = self.om_classifier(obs_matrix)
-        #print(img_logits.shape,om_logits.shape)
-       # print(x.shape,om_logits.shape)
-        return self.late_fusion_classifier(torch.cat((img_logits,om_logits),dim=-1))
+        # print(img_logits.shape,om_logits.shape)
+        # print(x.shape,om_logits.shape)
+        return self.late_fusion_classifier(torch.cat((img_logits, om_logits), dim=-1))
 
 
 def _late_fusion_imgpp_vit_lite(arch, pretrained, progress,
-                                 num_layers, num_heads, mlp_ratio, embedding_dim,
-                                 kernel_size=4, *args, **kwargs):
+                                num_layers, num_heads, mlp_ratio, embedding_dim,
+                                kernel_size=4, *args, **kwargs):
     model = ImGpViTLite(num_layers=num_layers,
                         num_heads=num_heads,
                         mlp_ratio=mlp_ratio,
@@ -119,107 +120,107 @@ def _late_fusion_imgpp_vit_lite(arch, pretrained, progress,
 
 def late_fusion_imgpp_vit_2(*args, **kwargs):
     return _late_fusion_imgpp_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                                        *args, **kwargs)
+                                       *args, **kwargs)
 
 
 def late_fusion_imgpp_vit_4(*args, **kwargs):
     return _late_fusion_imgpp_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                                        *args, **kwargs)
+                                       *args, **kwargs)
 
 
 def late_fusion_imgpp_vit_6(*args, **kwargs):
     return _late_fusion_imgpp_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                                        *args, **kwargs)
+                                       *args, **kwargs)
 
 
 def late_fusion_imgpp_vit_7(*args, **kwargs):
     return _late_fusion_imgpp_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                                        *args, **kwargs)
+                                       *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_2_4_32(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='learnable', num_classes=10,
-                                  *args, **kwargs):
+                                 img_size=32, positional_embedding='learnable', num_classes=10,
+                                 *args, **kwargs):
     return late_fusion_imgpp_vit_2('late_fusion_imgpp_vit_2_4_32', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_2_4_32_sine(pretrained=False, progress=False,
-                                       img_size=32, positional_embedding='sine', num_classes=10,
-                                       *args, **kwargs):
+                                      img_size=32, positional_embedding='sine', num_classes=10,
+                                      *args, **kwargs):
     return late_fusion_imgpp_vit_2('late_fusion_imgpp_vit_2_4_32_sine', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_4_4_32(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='learnable', num_classes=10,
-                                  *args, **kwargs):
+                                 img_size=32, positional_embedding='learnable', num_classes=10,
+                                 *args, **kwargs):
     return late_fusion_imgpp_vit_4('late_fusion_imgpp_vit_4_4_32', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_4_4_32_sine(pretrained=False, progress=False,
-                                       img_size=32, positional_embedding='sine', num_classes=10,
-                                       *args, **kwargs):
+                                      img_size=32, positional_embedding='sine', num_classes=10,
+                                      *args, **kwargs):
     return late_fusion_imgpp_vit_4('late_fusion_imgpp_vit_4_4_32_sine', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_6_4_32(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='learnable', num_classes=10,
-                                  *args, **kwargs):
+                                 img_size=32, positional_embedding='learnable', num_classes=10,
+                                 *args, **kwargs):
     return late_fusion_imgpp_vit_6('late_fusion_imgpp_vit_6_4_32', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_6_4_32_sine(pretrained=False, progress=False,
-                                       img_size=32, positional_embedding='sine', num_classes=10,
-                                       *args, **kwargs):
+                                      img_size=32, positional_embedding='sine', num_classes=10,
+                                      *args, **kwargs):
     return late_fusion_imgpp_vit_6('late_fusion_imgpp_vit_6_4_32_sine', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_7_4_32(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='learnable', num_classes=10,
-                                  *args, **kwargs):
+                                 img_size=32, positional_embedding='learnable', num_classes=10,
+                                 *args, **kwargs):
     return late_fusion_imgpp_vit_7('late_fusion_imgpp_vit_7_4_32', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)
 
 
 @register_model
 def late_fusion_imgpp_vit_7_4_32_sine(pretrained=False, progress=False,
-                                       img_size=32, positional_embedding='sine', num_classes=10,
-                                       *args, **kwargs):
+                                      img_size=32, positional_embedding='sine', num_classes=10,
+                                      *args, **kwargs):
     return late_fusion_imgpp_vit_7('late_fusion_imgpp_vit_7_4_32_sine', pretrained, progress,
-                                    kernel_size=4,
-                                    img_size=img_size, positional_embedding=positional_embedding,
-                                    num_classes=num_classes,
-                                    *args, **kwargs)
+                                   kernel_size=4,
+                                   img_size=img_size, positional_embedding=positional_embedding,
+                                   num_classes=num_classes,
+                                   *args, **kwargs)

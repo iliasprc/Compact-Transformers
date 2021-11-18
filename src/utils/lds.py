@@ -201,7 +201,7 @@ def image_to_Om(input_tensor, lds_size=3, m=3, num_channels=3):
     return OM.view(b, T, -1)
 
 
-def batch_image_to_Om(input_tensor, lds_size=3, m=3, num_channels=3):
+def batch_image_to_Om(input_tensor, lds_size=3, m=3 ):
     b, T, c = input_tensor.shape
 
     input_tensor = input_tensor.view(b, T, -1, lds_size)

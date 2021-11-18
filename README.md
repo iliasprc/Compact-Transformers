@@ -77,6 +77,10 @@ parameters.
 
 ## Install locally
 
+### Requirements
+
+Python 3.7
+
 Our base model is in pure PyTorch and Torchvision. No extra packages are required.
 Please refer to [PyTorch's Getting Started](https://pytorch.org/get-started/locally/) page for detailed instructions.
 
@@ -201,6 +205,10 @@ You can use our training configurations provided in `configs/`:
 ```shell
 python train.py -c configs/datasets/cifar10.yml --model cct_7_3x1_32 /path/to/cifar10
 ```
+
+python train.py -c configs/datasets/cifar10.yml --model early_fusion_imgpp_vit_7_4_32 ./data/CIFAR-10-images-master/
+
+
 
 ### Models and config files
 We've updated this repository and moved the previous training script and the checkpoints associated 
