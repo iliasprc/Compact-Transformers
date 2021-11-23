@@ -8,14 +8,16 @@ from .lds import grassmanian_point
 from .stochastic_depth import DropPath
 
 
-class GrassmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+class ProjectionAttention_Kernel(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1,use_scale=False):
         super().__init__()
 
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = head_dim ** -0.5
+        if use_scale:
+            self.scale = head_dim ** -0.5
+            self.use_scale = use_scale
 
         self.qkv = Linear(dim, dim * 3, bias=False)
         self.attn_drop = Dropout(attention_dropout)
@@ -31,14 +33,9 @@ class GrassmanianAttention(nn.Module):
         q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
         k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
         dots = torch.matmul(q, k)  # * self.scale
-        # print(dots.shape)
+
         attn = torch.linalg.norm(dots, dim=2) ** 2.  # *dots
-        # attn =  self.attend(attn)
-        # print(attn.shape,v.shape,q.shape)
-        # attn = dots
-        # for i in range(self.heads):
-        #
-        #     draw(attn[0,i,:,:].cpu(),name=f'head_{i}')
+
 
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')

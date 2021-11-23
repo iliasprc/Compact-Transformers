@@ -45,7 +45,7 @@ class ImGpViTLite(nn.Module):
                                    conv_bias=True)
         self.m = 4
         self.lds_order = 4
-        self.om_layer = ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size,m=self.m,lds_size=self.lds_order,return_gradients=False)
+        self.om_layer = ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size,m=self.m,lds_size=self.lds_order,return_gradients=True)
         self.project = nn.Sequential(nn.Linear(self.m * self.lds_order ** 2 + embedding_dim, embedding_dim))
         self.classifier = TransformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
@@ -78,7 +78,7 @@ class ImGpViTLite(nn.Module):
         return self.classifier(x)
 
 
-def _early_fusion_imgpp_vit_lite(arch, pretrained, progress,
+def _early_fusion__vit_lite(arch, pretrained, progress,
                                  num_layers, num_heads, mlp_ratio, embedding_dim,
                                  kernel_size=4, *args, **kwargs):
     model = ImGpViTLite(num_layers=num_layers,
@@ -96,31 +96,31 @@ def _early_fusion_imgpp_vit_lite(arch, pretrained, progress,
     return model
 
 
-def early_fusion_imgpp_vit_2(*args, **kwargs):
-    return _early_fusion_imgpp_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def early_fusion__vit_2(*args, **kwargs):
+    return _early_fusion__vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                         *args, **kwargs)
 
 
-def early_fusion_imgpp_vit_4(*args, **kwargs):
-    return _early_fusion_imgpp_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def early_fusion__vit_4(*args, **kwargs):
+    return _early_fusion__vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                         *args, **kwargs)
 
 
-def early_fusion_imgpp_vit_6(*args, **kwargs):
-    return _early_fusion_imgpp_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def early_fusion__vit_6(*args, **kwargs):
+    return _early_fusion__vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                         *args, **kwargs)
 
 
-def early_fusion_imgpp_vit_7(*args, **kwargs):
-    return _early_fusion_imgpp_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def early_fusion__vit_7(*args, **kwargs):
+    return _early_fusion__vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                         *args, **kwargs)
 
 
 @register_model
-def early_fusion_imgpp_vit_2_4_32(pretrained=False, progress=False,
+def early_fusion__vit_2_4_32(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='learnable', num_classes=10,
                                   *args, **kwargs):
-    return early_fusion_imgpp_vit_2('early_fusion_imgpp_vit_2_4_32', pretrained, progress,
+    return early_fusion__vit_2('early_fusion__vit_2_4_32', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -128,10 +128,10 @@ def early_fusion_imgpp_vit_2_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_2_4_32_sine(pretrained=False, progress=False,
+def early_fusion__vit_2_4_32_sine(pretrained=False, progress=False,
                                        img_size=32, positional_embedding='sine', num_classes=10,
                                        *args, **kwargs):
-    return early_fusion_imgpp_vit_2('early_fusion_imgpp_vit_2_4_32_sine', pretrained, progress,
+    return early_fusion__vit_2('early_fusion__vit_2_4_32_sine', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -139,10 +139,10 @@ def early_fusion_imgpp_vit_2_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_4_4_32(pretrained=False, progress=False,
+def early_fusion__vit_4_4_32(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='learnable', num_classes=10,
                                   *args, **kwargs):
-    return early_fusion_imgpp_vit_4('early_fusion_imgpp_vit_4_4_32', pretrained, progress,
+    return early_fusion__vit_4('early_fusion__vit_4_4_32', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -150,10 +150,10 @@ def early_fusion_imgpp_vit_4_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_4_4_32_sine(pretrained=False, progress=False,
+def early_fusion__vit_4_4_32_sine(pretrained=False, progress=False,
                                        img_size=32, positional_embedding='sine', num_classes=10,
                                        *args, **kwargs):
-    return early_fusion_imgpp_vit_4('early_fusion_imgpp_vit_4_4_32_sine', pretrained, progress,
+    return early_fusion__vit_4('early_fusion__vit_4_4_32_sine', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -161,10 +161,10 @@ def early_fusion_imgpp_vit_4_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_6_4_32(pretrained=False, progress=False,
+def early_fusion__vit_6_4_32(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='learnable', num_classes=10,
                                   *args, **kwargs):
-    return early_fusion_imgpp_vit_6('early_fusion_imgpp_vit_6_4_32', pretrained, progress,
+    return early_fusion__vit_6('early_fusion__vit_6_4_32', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -172,10 +172,10 @@ def early_fusion_imgpp_vit_6_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_6_4_32_sine(pretrained=False, progress=False,
+def early_fusion__vit_6_4_32_sine(pretrained=False, progress=False,
                                        img_size=32, positional_embedding='sine', num_classes=10,
                                        *args, **kwargs):
-    return early_fusion_imgpp_vit_6('early_fusion_imgpp_vit_6_4_32_sine', pretrained, progress,
+    return early_fusion__vit_6('early_fusion__vit_6_4_32_sine', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -183,10 +183,10 @@ def early_fusion_imgpp_vit_6_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_7_4_32(pretrained=False, progress=False,
+def early_fusion__vit_7_4_32(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='learnable', num_classes=10,
                                   *args, **kwargs):
-    return early_fusion_imgpp_vit_7('early_fusion_imgpp_vit_7_4_32', pretrained, progress,
+    return early_fusion__vit_7('early_fusion__vit_7_4_32', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,
@@ -194,10 +194,10 @@ def early_fusion_imgpp_vit_7_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def early_fusion_imgpp_vit_7_4_32_sine(pretrained=False, progress=False,
+def early_fusion__vit_7_4_32_sine(pretrained=False, progress=False,
                                        img_size=32, positional_embedding='sine', num_classes=10,
                                        *args, **kwargs):
-    return early_fusion_imgpp_vit_7('early_fusion_imgpp_vit_7_4_32_sine', pretrained, progress,
+    return early_fusion__vit_7('early_fusion__vit_7_4_32_sine', pretrained, progress,
                                     kernel_size=4,
                                     img_size=img_size, positional_embedding=positional_embedding,
                                     num_classes=num_classes,

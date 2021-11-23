@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from decord import cpu
 
 
 def covariance(X):
@@ -63,17 +64,20 @@ def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
         input_data = block
 
         _, h, w = input_data.shape
-        c0 = block.view(1, -1).mean(dim=-1).unsqueeze(0).repeat(h, w)
+        c0 = block.mean(dim=-1)
+        print(c0)
 
-        Y = (input_data - c0).squeeze()
-        # print(Y.shape)
+        Y = (input_data - c0).squeeze(0)
+        print(Y.shape)
         U, S, V = torch.linalg.svd(Y)
         V = torch.transpose(V, 1, 0)
         # print(f'u {U.shape} S {S.shape} V {V.shape}')
         U = U[:, :lds_size]
         S = S[:lds_size]
         V = V[:, :lds_size]
-
+       # print(U)
+        #print(S)
+        #print(V)
         CLDS = U
 
         Z = torch.matmul(torch.diag(S), V.transpose(0, 1))
@@ -127,10 +131,15 @@ def Batch_createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channel
         input_data = block
 
         bs = block.shape[0]
-        # c0 = torch.mean(block.view(bs, -1), dim=-1).unsqueeze(-1).unsqueeze(-1)
-        h, w = input_data.shape[-1], input_data.shape[-2],
+        T = block.shape[1]
+        d = block.shape[2]
 
-        Y = (input_data)  # - c0.repeat(1, w, h))
+        mean_ = torch.mean(block.reshape(bs, T,d,-1), dim=-1).unsqueeze(-1)
+
+        h, w = input_data.shape[-1], input_data.shape[-2],
+        #print('mean ',mean_.shape,'input ',input_data.shape)
+        Y = (input_data) - mean_
+        #print('Y ',Y.shape)
         ##print(f"Y {Y}")
         U, S, V = torch.linalg.svd(Y)
         # print(U.shape,S.shape,V.shape)
@@ -158,9 +167,7 @@ def Batch_createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channel
 
         return ALDS, CLDS
 
-        # #print(U, '\n', V)
-        # U, s, Vh = scipy.linalg.svd(Y)
-        # #print(U,'\n',Vh)
+
 
 
 def grassmanian_point(Om):
@@ -183,7 +190,7 @@ def image_to_Om(input_tensor, lds_size=3, m=3, num_channels=3):
         for j in range(n):
             lds_input = input_tensor[i, j, :]
             # print(lds_input.shape)
-            lds_input = lds_input.view(-1, num_channels)
+            lds_input = lds_input.view(-1,lds_size)
             ALDS, CLDS = createLDS(lds_input, lds_size, False, 0, 0)
             # print(f'A {ALDS.shape} C {CLDS.shape}' )
             Om = observability_matrix(ALDS, CLDS, m=m)
@@ -208,19 +215,12 @@ def batch_image_to_Om(input_tensor, lds_size=3, m=3 ):
     # print(input_tensor.shape)
 
     ALDS, CLDS = Batch_createLDS(input_tensor, lds_size, False, 0, 0)
-    # print(f' A {ALDS.shape}, C {CLDS.shape}')
+
     OM = Bobservability_matrix(ALDS, CLDS, m)
-    # print(f' O M {OM.shape}')
+
 
     OM = OM.view(b, T, -1)
-    # print(f' O M {OM.shape}')
-    # Q, R = grassmanian_point(OM)
-    # print(OM.shape)
 
-    # print(Q.shape)
-    # b_T, c1, c2 = Q.shape
-    # Q = Q.view(b,T,c1*c2)
-    # print(OM.shape,Q.shape)
 
     return OM
 
@@ -250,18 +250,21 @@ def test():
     torch.manual_seed(0)
     np.random.seed(0)
 
-    batch_image_to_Om(torch.randn((4, 3, 224, 224)))
+    om = batch_image_to_Om(torch.randn((4, 64,12)),lds_size=3, m=3 )
+    print(om.shape)
+    exit()
 
     lds_input = np.arange(16).reshape(4, 4)  # .transpose()
 
-    lds_input = np.array([0.730330862855453, 0.458848828179931, 0.231594386708524, 0.395515215668593,
+    lds_input = torch.from_numpy(np.array([0.730330862855453, 0.458848828179931, 0.231594386708524, 0.395515215668593,
                           0.488608973803579, 0.963088539286913, 0.488897743920167, 0.367436648544477,
                           0.578525061023439, 0.546805718738968, 0.624060088173690, 0.987982003161633,
-                          0.237283579771521, 0.521135830804002, 0.679135540865748, 0.0377388662395521]).reshape(4, 4)
+                          0.237283579771521, 0.521135830804002, 0.679135540865748, 0.0377388662395521]).reshape(4, 4))
     # print(lds_input.shape)
 
-    lds_input = torch.randn(4, 3, 1000, 1000)
-    OM = batch_image_to_Om(lds_input, patch_shape=64, lds_size=3)
+
+    ALDS, CLDS = createLDS(lds_input,   lds_size=3)
+    print(ALDS,CLDS)
     # print(OM.shape)
     # patch_shape = 16
     # unfold = torch.nn.Unfold(kernel_size=patch_shape,stride = patch_shape)
@@ -280,8 +283,8 @@ def test():
     #     Omtensor.append(Om)
     # Omtensor = torch.stack(Omtensor,dim=0)
     # #print(Omtensor.shape)
-    input_data = torch.from_numpy(np.arange(16).reshape(4, 4)).float()
-    input_data = torch.randn((16 * 16, 4))  # .unsqueeze(0)
+    #input_data = torch.from_numpy(np.arange(16).reshape(4, 4)).float()
+    #input_data = torch.randn((16 * 16, 4))  # .unsqueeze(0)
     # input_data = torch.stack((input_data,input_data),dim=0)
     # print(input_data)
     # # if len(input_data.shape) == 3:
@@ -291,26 +294,31 @@ def test():
     # i = torch.transpose(input_data,-1,-2)
     # #print(i)
     #
-    # block = torch.flip(torch.transpose(input_data,-1,-2), [-1])  # .view(4,4,-1)
-    # #print(block)
-    lds_size = 3
-    # ALDS, CLDS = Batch_createLDS(input_data, lds_size, False, 0, 0)
+    # # block = torch.flip(torch.transpose(input_data,-1,-2), [-1])  # .view(4,4,-1)
+    # # #print(block)
+    # lds_size = 3
+    # # ALDS, CLDS = Batch_createLDS(input_data, lds_size, False, 0, 0)
+    # # Om = Bobservability_matrix(ALDS, CLDS, lds_size)
+    # A = torch.randn((3, 3))
+    # C = torch.randn((3, 4))
+    #
+    # ALDS, CLDS = createLDS(input_data, 3)
+    # # print(ALDS,'\n',CLDS)
+    # # print(ALDS.shape,CLDS.shape)
+    # Om = observability_matrix(ALDS, CLDS, lds_size)
+    # # print(Om)
+    # ALDS, CLDS = Batch_createLDS(torch.stack((input_data, input_data), dim=0), lds_size, False, 0, 0)
     # Om = Bobservability_matrix(ALDS, CLDS, lds_size)
-    A = torch.randn((3, 3))
-    C = torch.randn((3, 4))
+    # # print(Om)
+    # # print(ALDS,'\n',CLDS)
+    # # print(ALDS.shape,CLDS.shape)
 
-    ALDS, CLDS = createLDS(input_data, 3)
-    # print(ALDS,'\n',CLDS)
-    # print(ALDS.shape,CLDS.shape)
-    Om = observability_matrix(ALDS, CLDS, lds_size)
-    # print(Om)
-    ALDS, CLDS = Batch_createLDS(torch.stack((input_data, input_data), dim=0), lds_size, False, 0, 0)
-    Om = Bobservability_matrix(ALDS, CLDS, lds_size)
-    # print(Om)
-    # print(ALDS,'\n',CLDS)
-    # print(ALDS.shape,CLDS.shape)
 
-# test()
+cpkt = torch.load('/home/iliask/PycharmProjects/Compact-Transformers/output/train/20211110-132218-grassmanian_vit_2_4_32-32/model_best.pth.tar')
+print(cpkt.keys())
+print(cpkt['arch'])
+print(cpkt['state_dict'].keys())
+#test()
 # import matplotlib.pyplot as plt
 # # helpers
 #

@@ -37,7 +37,7 @@ from timm.utils import *
 from timm.utils import ApexScaler, NativeScaler
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 
 from src import *
 
@@ -278,11 +278,12 @@ parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_MET
 parser.add_argument('--tta', type=int, default=0, metavar='N',
                     help='Test/inference time augmentation (oversampling) factor. 0=None (default: 0)')
 parser.add_argument("--local_rank", default=0, type=int)
+parser.add_argument('--gpu',default='1',type=str)
 parser.add_argument('--use-multi-epochs-loader', action='store_true', default=False,
                     help='use the multi-epochs-loader to save time at the beginning of every epoch')
 parser.add_argument('--torchscript', dest='torchscript', action='store_true',
                     help='convert model torchscript for inference')
-parser.add_argument('--log-wandb', action='store_true', default=False,
+parser.add_argument('--log-wandb', action='store_true', default=True,
                     help='log training and validation metrics to wandb')
 
 
@@ -306,7 +307,7 @@ def _parse_args():
 def main():
     setup_default_logging()
     args, args_text = _parse_args()
-
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args)
@@ -582,7 +583,10 @@ def main():
             checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
         with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
-    print(model)
+
+    import shutil
+    shutil.copytree(f'./src',output_dir+'/src')
+    _logger.info(model)
     try:
         for epoch in range(start_epoch, num_epochs):
             if args.distributed and hasattr(loader_train.sampler, 'set_epoch'):

@@ -16,7 +16,7 @@ model_urls = {
 }
 
 
-class ImGpViTLite(nn.Module):
+class Late_fusion_img_grassmannian(nn.Module):
     def __init__(self,
                  img_size=224,
                  embedding_dim=768,
@@ -31,7 +31,7 @@ class ImGpViTLite(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  *args, **kwargs):
-        super(ImGpViTLite, self).__init__()
+        super(Late_fusion_img_grassmannian, self).__init__()
         assert img_size % kernel_size == 0, f"Image size ({img_size}) has to be" \
                                             f"divisible by patch size ({kernel_size})"
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
@@ -54,7 +54,8 @@ class ImGpViTLite(nn.Module):
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
                                                            width=img_size),
-            embedding_dim=embedding_dim, seq_pool=True,
+            embedding_dim=embedding_dim,
+            seq_pool=False,
             dropout=dropout,
             attention_dropout=attention_dropout,
             stochastic_depth=stochastic_depth,
@@ -70,7 +71,7 @@ class ImGpViTLite(nn.Module):
                                                            height=img_size,
                                                            width=img_size),
             embedding_dim=embedding_dim,
-            seq_pool=True,
+            seq_pool=False,
             dropout=dropout,
             attention_dropout=attention_dropout,
             stochastic_depth=stochastic_depth,
@@ -103,12 +104,12 @@ class ImGpViTLite(nn.Module):
 def _late_fusion_imgpp_vit_lite(arch, pretrained, progress,
                                 num_layers, num_heads, mlp_ratio, embedding_dim,
                                 kernel_size=4, *args, **kwargs):
-    model = ImGpViTLite(num_layers=num_layers,
-                        num_heads=num_heads,
-                        mlp_ratio=mlp_ratio,
-                        embedding_dim=embedding_dim,
-                        kernel_size=kernel_size,
-                        *args, **kwargs)
+    model = Late_fusion_img_grassmannian(num_layers=num_layers,
+                                         num_heads=num_heads,
+                                         mlp_ratio=mlp_ratio,
+                                         embedding_dim=embedding_dim,
+                                         kernel_size=kernel_size,
+                                         *args, **kwargs)
 
     if pretrained and arch in model_urls:
         state_dict = load_state_dict_from_url(model_urls[arch],
