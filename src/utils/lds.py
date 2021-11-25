@@ -11,27 +11,30 @@ def covariance(X):
 
 
 def riemannian_dist(x1, x2, use_covariance=False):
-    # print(x1.shape)
+    print(x1.shape)
     if use_covariance:
         x1 = covariance(x1)
         x2 = covariance(x2)
-    # print(f'x1 {x1.shape} s1 {s_1.shape}')
+    print(f'x1 {x1.shape} s1')
 
-    s = (torch.linalg.inv(x1) * x2)
-    dist = torch.norm(s, dim=-1, keepdim=True)
-
+    s = (torch.linalg.inv(x1) @ x2)
+    #print(s.shape)
+    dist = torch.norm(torch.log(s+s.min()+1.0), dim=-1, keepdim=True)
+    b,h,t,_ = dist.shape
+    dist = dist.repeat(1,1,1,t)
+    #print(dist.shape)
     return dist
 
 
-def log_dist(x1, x2, use_covariance=False,use_log=False):
+def log_dist(x1, x2, use_covariance=True,use_log=False):
     # print(x1.shape)
     if use_covariance:
         x1 = covariance(x1)
         x2 = covariance(x2)
-    #print(x1.min(),x2.min())
+    print(x1.shape())
     if use_log:
 
-        d = torch.log(x1) - torch.log(x2)
+        d = torch.log(x1+1.0) - torch.log(x2+1.0)
     else:
         d = x1-x2
     #print(d.min(),d.max())
@@ -314,10 +317,10 @@ def test():
     # # print(ALDS.shape,CLDS.shape)
 
 
-cpkt = torch.load('/home/iliask/PycharmProjects/Compact-Transformers/output/train/20211110-132218-grassmanian_vit_2_4_32-32/model_best.pth.tar')
-print(cpkt.keys())
-print(cpkt['arch'])
-print(cpkt['state_dict'].keys())
+# cpkt = torch.load('/home/iliask/PycharmProjects/Compact-Transformers/output/train/20211110-132218-grassmanian_vit_2_4_32-32/model_best.pth.tar')
+# print(cpkt.keys())
+# print(cpkt['arch'])
+# print(cpkt['state_dict'].keys())
 #test()
 # import matplotlib.pyplot as plt
 # # helpers

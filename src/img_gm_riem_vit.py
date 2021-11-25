@@ -1,9 +1,12 @@
+import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
 from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
 from .utils.helpers import pe_check
+from .utils.riemmanian_utils import RiemmanianformerClassifier
 from .utils.tokenizer import Tokenizer
+from .utils.transformers import TransformerClassifier
 
 try:
     from timm.models.registry import register_model
@@ -14,7 +17,7 @@ model_urls = {
 }
 
 
-class GrassmanianViTLite(nn.Module):
+class Late_fusion_img_gm_riem_vit(nn.Module):
     def __init__(self,
                  img_size=224,
                  embedding_dim=768,
@@ -29,7 +32,7 @@ class GrassmanianViTLite(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  *args, **kwargs):
-        super(GrassmanianViTLite, self).__init__()
+        super(Late_fusion_img_gm_riem_vit, self).__init__()
         assert img_size % kernel_size == 0, f"Image size ({img_size}) has to be" \
                                             f"divisible by patch size ({kernel_size})"
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
@@ -43,11 +46,11 @@ class GrassmanianViTLite(nn.Module):
                                    conv_bias=True)
         self.m = 4
         self.lds_order = 4
-        self.om_layer = nn.Sequential(nn.LayerNorm(embedding_dim),
+        self.om_layer = nn.Sequential(
             ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m, lds_size=self.lds_order),
             nn.Linear(self.m * self.lds_order ** 2, embedding_dim))
-        # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
-        self.classifier = GrassmanianformerClassifier(
+
+        self.om_classifier = GrassmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
                                                            width=img_size),
@@ -62,29 +65,61 @@ class GrassmanianViTLite(nn.Module):
             num_classes=num_classes,
             positional_embedding=positional_embedding
         )
+        self.om_classifier.fc = nn.Identity()
+        self.img_classifier = TransformerClassifier(
+            sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
+                                                           height=img_size,
+                                                           width=img_size),
+            embedding_dim=embedding_dim,
+            seq_pool=False,
+            dropout=dropout,
+            attention_dropout=attention_dropout,
+            stochastic_depth=stochastic_depth,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            mlp_ratio=mlp_ratio,
+            num_classes=num_classes,
+            positional_embedding=positional_embedding
+        )
+        self.riem_classifier = RiemmanianformerClassifier(
+            sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
+                                                           height=img_size,
+                                                           width=img_size),
+            embedding_dim=embedding_dim,
+            seq_pool=False,
+            dropout=dropout,
+            attention_dropout=attention_dropout,
+            stochastic_depth=stochastic_depth,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            mlp_ratio=mlp_ratio,
+            num_classes=num_classes,
+            positional_embedding=positional_embedding
+        )
+        self.riem_classifier.fc = nn.Identity()
+        self.img_classifier.fc = nn.Identity()
+        self.late_fusion_classifier = nn.Linear(3 * embedding_dim, num_classes)
 
-    def forward(self, x):
-        # print(om.shape)
-        x = self.tokenizer(x)
-        # print(x.shape)
-        om = self.om_layer(x)
-        # print(x.shape, om.shape)
-        # print(om.shape)
-        # x  = self.tokenizer(x)sss
-        # om = self.project(om)
+    def forward(self, image):
+        x = self.tokenizer(image)
+        obs_matrix = self.om_layer(x)
 
-        return self.classifier(om)
+        img_logits = self.img_classifier(x)
+        riemmanian_logits = self.riem_classifier(x)
+        om_logits = self.om_classifier(obs_matrix)
+
+        return self.late_fusion_classifier(torch.cat((img_logits, om_logits, riemmanian_logits), dim=-1))
 
 
-def _grassmanian_vit_lite(arch, pretrained, progress,
+def _img_gm_riem_vit_lite(arch, pretrained, progress,
                           num_layers, num_heads, mlp_ratio, embedding_dim,
                           kernel_size=4, *args, **kwargs):
-    model = GrassmanianViTLite(num_layers=num_layers,
-                               num_heads=num_heads,
-                               mlp_ratio=mlp_ratio,
-                               embedding_dim=embedding_dim,
-                               kernel_size=kernel_size,
-                               *args, **kwargs)
+    model = Late_fusion_img_gm_riem_vit(num_layers=num_layers,
+                                        num_heads=num_heads,
+                                        mlp_ratio=mlp_ratio,
+                                        embedding_dim=embedding_dim,
+                                        kernel_size=kernel_size,
+                                        *args, **kwargs)
 
     if pretrained and arch in model_urls:
         state_dict = load_state_dict_from_url(model_urls[arch],
@@ -94,31 +129,31 @@ def _grassmanian_vit_lite(arch, pretrained, progress,
     return model
 
 
-def grassmanian_vit_2(*args, **kwargs):
-    return _grassmanian_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def img_gm_riem_vit_2(*args, **kwargs):
+    return _img_gm_riem_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                  *args, **kwargs)
 
 
-def grassmanian_vit_4(*args, **kwargs):
-    return _grassmanian_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def img_gm_riem_vit_4(*args, **kwargs):
+    return _img_gm_riem_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                  *args, **kwargs)
 
 
-def grassmanian_vit_6(*args, **kwargs):
-    return _grassmanian_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def img_gm_riem_vit_6(*args, **kwargs):
+    return _img_gm_riem_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                  *args, **kwargs)
 
 
-def grassmanian_vit_7(*args, **kwargs):
-    return _grassmanian_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def img_gm_riem_vit_7(*args, **kwargs):
+    return _img_gm_riem_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                  *args, **kwargs)
 
 
 @register_model
-def grassmanian_vit_2_4_32(pretrained=False, progress=False,
+def img_gm_riem_vit_2_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return grassmanian_vit_2('grassmanian_vit_2_4_32', pretrained, progress,
+    return img_gm_riem_vit_2('img_gm_riem_vit_2_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -126,10 +161,10 @@ def grassmanian_vit_2_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_2_4_32_sine(pretrained=False, progress=False,
+def img_gm_riem_vit_2_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return grassmanian_vit_2('grassmanian_vit_2_4_32_sine', pretrained, progress,
+    return img_gm_riem_vit_2('img_gm_riem_vit_2_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -137,10 +172,10 @@ def grassmanian_vit_2_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_4_4_32(pretrained=False, progress=False,
+def img_gm_riem_vit_4_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return grassmanian_vit_4('grassmanian_vit_4_4_32', pretrained, progress,
+    return img_gm_riem_vit_4('img_gm_riem_vit_4_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -148,10 +183,10 @@ def grassmanian_vit_4_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_4_4_32_sine(pretrained=False, progress=False,
+def img_gm_riem_vit_4_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return grassmanian_vit_4('grassmanian_vit_4_4_32_sine', pretrained, progress,
+    return img_gm_riem_vit_4('img_gm_riem_vit_4_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -159,10 +194,10 @@ def grassmanian_vit_4_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_6_4_32(pretrained=False, progress=False,
+def img_gm_riem_vit_6_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return grassmanian_vit_6('grassmanian_vit_6_4_32', pretrained, progress,
+    return img_gm_riem_vit_6('img_gm_riem_vit_6_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -170,10 +205,10 @@ def grassmanian_vit_6_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_6_4_32_sine(pretrained=False, progress=False,
+def img_gm_riem_vit_6_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return grassmanian_vit_6('grassmanian_vit_6_4_32_sine', pretrained, progress,
+    return img_gm_riem_vit_6('img_gm_riem_vit_6_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -181,10 +216,10 @@ def grassmanian_vit_6_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_7_4_32(pretrained=False, progress=False,
+def img_gm_riem_vit_7_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return grassmanian_vit_7('grassmanian_vit_7_4_32', pretrained, progress,
+    return img_gm_riem_vit_7('img_gm_riem_vit_7_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -192,10 +227,10 @@ def grassmanian_vit_7_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_vit_7_4_32_sine(pretrained=False, progress=False,
+def img_gm_riem_vit_7_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return grassmanian_vit_7('grassmanian_vit_7_4_32_sine', pretrained, progress,
+    return img_gm_riem_vit_7('img_gm_riem_vit_7_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,

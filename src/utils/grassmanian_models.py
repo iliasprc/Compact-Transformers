@@ -99,8 +99,90 @@ class ProjectionAttentionKernel(nn.Module):
         q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
         k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
         dots = torch.matmul(q, k)  # * self.scale
+        #print(dots.shape)
+        attn = torch.softmax(torch.linalg.norm(dots, dim=2) ** 2. ,dim=-1) # *dots
+        # attn =  self.attend(attn)
+        # print(attn.shape,v.shape,q.shape)
+        # attn = dots
+        # for i in range(self.heads):
+        #
+        #     draw(attn[0,i,:,:].cpu(),name=f'head_{i}')
+
+        out = torch.matmul(attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.proj(out)
+
+
+class ProjectionAttentionKernelv2(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+        super().__init__()
+
+
+        self.num_heads = num_heads
+        head_dim = dim // self.num_heads
+        self.scale = head_dim ** -0.5
+
+        self.qkv = Linear(dim, dim * 3, bias=False)
+
+        self.attn_drop = Dropout(attention_dropout)
+        self.proj = Linear(dim, dim)
+        self.proj_drop = Dropout(projection_dropout)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        #print(f'x {x.shape}')
+        qkv = self.qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: rearrange(t, 'b t (h d) -> b t h d', h=self.num_heads), qkv)
+        #v = rearrange(v,'b n h d -> b h n d')
+        #print(f'q {q.shape} k {k.shape}  v  {v.shape}')
+        q, _ = grassmanian_point(q)
+        k, _ = grassmanian_point(k)
+        #print(f'Gq {q.shape} k {k.shape}  v  {v.shape}')
+        #q = rearrange(q, 'b t h d  -> b h d t').unsqueeze(-1)
+        #k = rearrange(k, 'b t h d-> b h d t').unsqueeze(-2)
+        dots = torch.matmul(q.transpose(-1,-2), k)  # * self.scale
+        #print(dots.shape)
+        attn = torch.linalg.norm(dots, dim=(-1,-2),keepdim=True) ** 2.  # *dots
+        #print(attn.shape)
+        # attn =  self.attend(attn)
+        # print(attn.shape,v.shape,q.shape)
+        # attn = dots
+        # for i in range(self.heads):
+        #
+        #     draw(attn[0,i,:,:].cpu(),name=f'head_{i}')
+
+        out = attn* v #)
+        out = rearrange(out, 'b t h d -> b t (h d)')
+        return self.proj(out)
+
+class AsimovAttention(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+        super().__init__()
+
+
+        self.num_heads = num_heads
+        head_dim = dim // self.num_heads
+        self.scale = head_dim ** -0.5
+
+        self.qkv = Linear(dim, dim * 3, bias=False)
+
+        self.attn_drop = Dropout(attention_dropout)
+        self.proj = Linear(dim, dim)
+        self.proj_drop = Dropout(projection_dropout)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        #print(f'x {x.shape}')
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        #print(f'q {q.shape} k {k.shape}  v  {v.shape}')
+        q, _ = grassmanian_point(q)
+        k, _ = grassmanian_point(k)
+        q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
+        k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
+        dots = torch.matmul(q, k)  # * self.scale
         # print(dots.shape)
-        attn = torch.linalg.norm(dots, dim=2) ** 2.  # *dots
+        attn = torch.acos(torch.linalg.norm(dots, dim=2))  # *dots
         # attn =  self.attend(attn)
         # print(attn.shape,v.shape,q.shape)
         # attn = dots

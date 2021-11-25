@@ -2,7 +2,6 @@ import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
 from .utils.helpers import pe_check
-from .utils.lds import covariance
 from .utils.riemmanian_utils import RiemmanianformerClassifier
 from .utils.tokenizer import Tokenizer
 
@@ -42,7 +41,7 @@ class RiemmanianViTLite(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.project = nn.Linear(img_size ** 2 // kernel_size ** 2, embedding_dim)
+        # self.project = nn.Linear(img_size ** 2 // kernel_size ** 2, embedding_dim)
         self.classifier = RiemmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -61,9 +60,9 @@ class RiemmanianViTLite(nn.Module):
 
     def forward(self, x):
         x = self.tokenizer(x)
-        x = covariance(x)
+        # x = covariance(x)
         # print(x.shape)
-        x = self.project(x)
+        # x = self.project(x)
         return self.classifier(x)
 
 
