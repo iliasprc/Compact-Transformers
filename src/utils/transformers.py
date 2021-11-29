@@ -9,9 +9,8 @@ from .stochastic_depth import DropPath
 
 
 class ProjectionAttention_Kernel(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1,use_scale=False):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, use_scale=False):
         super().__init__()
-
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
@@ -36,11 +35,9 @@ class ProjectionAttention_Kernel(nn.Module):
 
         attn = torch.linalg.norm(dots, dim=2) ** 2.  # *dots
 
-
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.proj(out)
-
 
 
 class Attention(Module):
@@ -66,7 +63,7 @@ class Attention(Module):
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
-        #print(f'atthn {attn.shape}')
+        # print(f'atthn {attn.shape}')
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
@@ -140,8 +137,6 @@ class TransformerEncoderLayer(Module):
         return src
 
 
-
-
 class GrassmanianEncoderLayer(Module):
     """
     Inspired by torch.nn.TransformerEncoderLayer and timm.
@@ -152,7 +147,7 @@ class GrassmanianEncoderLayer(Module):
         super(GrassmanianEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         self.self_attn = GrassmanianAttention(dim=d_model, num_heads=nhead,
-                                   attention_dropout=attention_dropout, projection_dropout=dropout)
+                                              attention_dropout=attention_dropout, projection_dropout=dropout)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -170,7 +165,6 @@ class GrassmanianEncoderLayer(Module):
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src = src + self.drop_path(self.dropout2(src2))
         return src
-
 
 
 class MaskedTransformerEncoderLayer(Module):
@@ -215,7 +209,7 @@ class TransformerClassifier(Module):
                  attention_dropout=0.1,
                  stochastic_depth=0.1,
                  positional_embedding='learnable',
-                 use_grassman = True,
+                 use_grassman=True,
                  sequence_length=None):
         super().__init__()
         positional_embedding = positional_embedding if \

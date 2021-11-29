@@ -2,14 +2,75 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+from einops.layers.torch import Rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
-from .lds import riemannian_dist
+from src.utils.lds import batch_image_to_Om
+from .lds import Bgrassmanian_point
 from .stochastic_depth import DropPath
 
 
-class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+################  GRASSMANN LIASSS ######################################33
+class NonTrainableObsMatrixModule(nn.Module):
+    def __init__(self, image_size=224, patch_size=16, channels=3, m=13, lds_size=3):
+        super().__init__()
+        # image_height, image_width = pair(image_size)
+        # patch_height, patch_width = pair(patch_size)
+
+        assert image_size % patch_size == 0, 'Image dimensions must be ' \
+                                             'divisible by the patch size.'
+
+        num_patches = (image_size // patch_size) ** 2
+        patch_dim = channels * patch_size ** 2
+
+        self.to_patch_embedding = Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size)
+
+        self.project = True
+
+        self.m = m
+        self.lds_size = lds_size
+        self.num_input_channels = 3
+        self.num_patches = num_patches
+        self.patc_dim = patch_dim
+
+    def forward(self, img):
+        with torch.no_grad():
+            x = self.to_patch_embedding(img)
+
+            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m, num_channels=self.num_input_channels)
+        return x
+
+
+class ObsMatrixTokenizer(nn.Module):
+    def __init__(self, image_size=224, patch_size=16, channels=3, m=4, lds_size=4, return_gradients=True):
+        super().__init__()
+        # image_height, image_width = pair(image_size)
+        # patch_height, patch_width = pair(patch_size)
+        #
+        # assert image_size % patch_size == 0, f' { image_size} {patch_size} Image dimensions must be ' \
+        #                                      'divisible by the patch size.'
+
+        num_patches = (image_size // patch_size) ** 2
+        patch_dim = channels * patch_size ** 2
+
+        self.project = True
+
+        self.m = m
+        self.lds_size = lds_size
+        self.num_input_channels = channels
+        self.return_gradients = return_gradients
+
+    def forward(self, x):
+        if self.return_gradients:
+            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
+        else:
+            with torch.no_grad():
+                x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
+        return x
+
+
+class ManifoldAttention(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
@@ -21,31 +82,55 @@ class RiemmanianAttention(nn.Module):
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
+        self.sequence_len = sequence_length
+        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        self.conv_attn = nn.Sequential(
+
+            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1), bias=False),
+            nn.LayerNorm(normalized_shape=self.num_heads))
 
     def forward(self, x):
         B, N, C = x.shape
+
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        dots = riemannian_dist(q, k, use_covariance=True)
-        # print(dots.shape,v.shape)
-        dots = torch.matmul(dots, v)
-        out = torch.softmax(dots, dim=-1)  # *dots
+        old_shape = q.shape
+
+        qgr = Bgrassmanian_point(q)
+        kgr = Bgrassmanian_point(k)
+        # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+
+        qgr = rearrange(qgr, 'b h t d -> b h d t').unsqueeze(-1)
+        kgr = rearrange(kgr, 'b h t d -> b h d t').unsqueeze(-2)
+        dots = torch.matmul(qgr, kgr)  # * self.scale
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+
+        # print(f'atthn {attn.shape}')
+        # attn = attn
+        # print(attn.shape,attn_grassmman.shape
+        #       )
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_grassmman), dim=1)))
+
+        out = torch.matmul(attn_, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.proj(out)
+        return self.proj_drop(self.proj(out))
 
 
-class RiemmanianEncoderLayer(Module):
+class ManifoldEncoderLayer(Module):
     """
     Inspired by torch.nn.TransformerEncoderLayer and timm.
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1):
-        super(RiemmanianEncoderLayer, self).__init__()
+                 attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
+        super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        self.self_attn = RiemmanianAttention(dim=d_model, num_heads=nhead,
-                                             attention_dropout=attention_dropout, projection_dropout=dropout)
+        self.self_attn = ManifoldAttention(dim=d_model, num_heads=nhead,
+                                           attention_dropout=attention_dropout, projection_dropout=dropout,
+                                           sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -65,7 +150,7 @@ class RiemmanianEncoderLayer(Module):
         return src
 
 
-class RiemmanianformerClassifier(Module):
+class ManifoldformerClassifier(Module):
     def __init__(self,
                  seq_pool=True,
                  embedding_dim=768,
@@ -112,16 +197,17 @@ class RiemmanianformerClassifier(Module):
         self.dropout = Dropout(p=dropout)
         dpr = [x.item() for x in torch.linspace(0, stochastic_depth, num_layers)]
         self.blocks = ModuleList([
-            RiemmanianEncoderLayer(d_model=embedding_dim, nhead=num_heads,
-                                   dim_feedforward=dim_feedforward, dropout=dropout,
-                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i])
+            ManifoldEncoderLayer(d_model=embedding_dim, nhead=num_heads,
+                                 dim_feedforward=dim_feedforward, dropout=dropout,
+                                 attention_dropout=attention_dropout, drop_path_rate=dpr[i],
+                                 sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
         self.fc = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
-    def forward(self, x, obs_matrix=None):
+    def forward(self, x):
         if self.positional_emb is None and x.size(1) < self.sequence_length:
             x = F.pad(x, (0, 0, 0, self.n_channels - x.size(1)), mode='constant', value=0)
 
@@ -140,6 +226,7 @@ class RiemmanianformerClassifier(Module):
 
         if self.seq_pool:
             x = torch.matmul(F.softmax(self.attention_pool(x), dim=1).transpose(-1, -2), x).squeeze(-2)
+
         else:
             x = x[:, 0]
 

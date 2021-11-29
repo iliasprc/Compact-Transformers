@@ -99,8 +99,8 @@ class ProjectionAttentionKernel(nn.Module):
         q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
         k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
         dots = torch.matmul(q, k)  # * self.scale
-        #print(dots.shape)
-        attn = torch.softmax(torch.linalg.norm(dots, dim=2) ** 2. ,dim=-1) # *dots
+        # print(dots.shape)
+        attn = self.attn_drop(torch.linalg.norm(dots, dim=2) ** 2. ) # *dots
         # attn =  self.attend(attn)
         # print(attn.shape,v.shape,q.shape)
         # attn = dots
@@ -110,8 +110,7 @@ class ProjectionAttentionKernel(nn.Module):
 
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.proj(out)
-
+        return self.proj_drop(self.proj(out))
 
 class ProjectionAttentionKernelv2(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):

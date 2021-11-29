@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
-from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
+from .utils.manifold_model import ManifoldformerClassifier
 from .utils.helpers import pe_check
 from .utils.tokenizer import Tokenizer
 
@@ -33,7 +33,7 @@ model_urls = {
 }
 
 
-class GrassmanianCCT(nn.Module):
+class ManifoldCCT(nn.Module):
     def __init__(self,
                  img_size=224,
                  embedding_dim=768,
@@ -54,7 +54,7 @@ class GrassmanianCCT(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  *args, **kwargs):
-        super(GrassmanianCCT, self).__init__()
+        super(ManifoldCCT, self).__init__()
 
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
                                    n_output_channels=embedding_dim,
@@ -68,13 +68,9 @@ class GrassmanianCCT(nn.Module):
                                    activation=nn.ReLU,
                                    n_conv_layers=n_conv_layers,
                                    conv_bias=False)
-        self.m = 4
-        self.lds_order = 4
-        self.om_layer = nn.Sequential(
-            ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m, lds_size=self.lds_order),
-            nn.Linear(self.m * self.lds_order ** 2, embedding_dim) )
 
-        self.classifier = GrassmanianformerClassifier(
+        # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
+        self.classifier = ManifoldformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
                                                            width=img_size),
@@ -92,26 +88,29 @@ class GrassmanianCCT(nn.Module):
 
     def forward(self, x):
         x = self.tokenizer(x)
-        om = self.om_layer(x)
+
+        # print(x.shape, om.shape)
+        # print(om.shape)
+        # x  = self.tokenizer(x)sss
+        # om = self.project(om)
+
+        return self.classifier(x)
 
 
-        return self.classifier(om)
-
-
-def _grassmanian_cct(arch, pretrained, progress,
+def _manifold_cct(arch, pretrained, progress,
                      num_layers, num_heads, mlp_ratio, embedding_dim,
                      kernel_size=3, stride=None, padding=None,
                      *args, **kwargs):
     stride = stride if stride is not None else max(1, (kernel_size // 2) - 1)
     padding = padding if padding is not None else max(1, (kernel_size // 2))
-    model = GrassmanianCCT(num_layers=num_layers,
-                           num_heads=num_heads,
-                           mlp_ratio=mlp_ratio,
-                           embedding_dim=embedding_dim,
-                           kernel_size=kernel_size,
-                           stride=stride,
-                           padding=padding,
-                           *args, **kwargs)
+    model = ManifoldCCT(num_layers=num_layers,
+                        num_heads=num_heads,
+                        mlp_ratio=mlp_ratio,
+                        embedding_dim=embedding_dim,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        *args, **kwargs)
 
     if pretrained:
         if arch in model_urls:
@@ -124,36 +123,36 @@ def _grassmanian_cct(arch, pretrained, progress,
     return model
 
 
-def grassmanian_cct_2(arch, pretrained, progress, *args, **kwargs):
-    return _grassmanian_cct(arch, pretrained, progress, num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def manifold_cct_2(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
                             *args, **kwargs)
 
 
-def grassmanian_cct_4(arch, pretrained, progress, *args, **kwargs):
-    return _grassmanian_cct(arch, pretrained, progress, num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def manifold_cct_4(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
                             *args, **kwargs)
 
 
-def grassmanian_cct_6(arch, pretrained, progress, *args, **kwargs):
-    return _grassmanian_cct(arch, pretrained, progress, num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def manifold_cct_6(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
                             *args, **kwargs)
 
 
-def grassmanian_cct_7(arch, pretrained, progress, *args, **kwargs):
-    return _grassmanian_cct(arch, pretrained, progress, num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def manifold_cct_7(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
                             *args, **kwargs)
 
 
-def grassmanian_cct_14(arch, pretrained, progress, *args, **kwargs):
-    return _grassmanian_cct(arch, pretrained, progress, num_layers=14, num_heads=6, mlp_ratio=3, embedding_dim=384,
+def manifold_cct_14(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=14, num_heads=6, mlp_ratio=3, embedding_dim=384,
                             *args, **kwargs)
 
 
 @register_model
-def grassmanian_cct_2_3x2_32(pretrained=False, progress=False,
+def manifold_cct_2_3x2_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_2('grassmanian_cct_2_3x2_32', pretrained, progress,
+    return manifold_cct_2('manifold_cct_2_3x2_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -161,10 +160,10 @@ def grassmanian_cct_2_3x2_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_2_3x2_32_sine(pretrained=False, progress=False,
+def manifold_cct_2_3x2_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_2('grassmanian_cct_2_3x2_32_sine', pretrained, progress,
+    return manifold_cct_2('manifold_cct_2_3x2_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -172,10 +171,10 @@ def grassmanian_cct_2_3x2_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_4_3x2_32(pretrained=False, progress=False,
+def manifold_cct_4_3x2_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_4('grassmanian_cct_4_3x2_32', pretrained, progress,
+    return manifold_cct_4('manifold_cct_4_3x2_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -183,10 +182,10 @@ def grassmanian_cct_4_3x2_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_4_3x2_32_sine(pretrained=False, progress=False,
+def manifold_cct_4_3x2_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_4('grassmanian_cct_4_3x2_32_sine', pretrained, progress,
+    return manifold_cct_4('manifold_cct_4_3x2_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -194,10 +193,10 @@ def grassmanian_cct_4_3x2_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_6_3x1_32(pretrained=False, progress=False,
+def manifold_cct_6_3x1_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_6('grassmanian_cct_6_3x1_32', pretrained, progress,
+    return manifold_cct_6('manifold_cct_6_3x1_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -205,10 +204,10 @@ def grassmanian_cct_6_3x1_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_6_3x1_32_sine(pretrained=False, progress=False,
+def manifold_cct_6_3x1_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_6('grassmanian_cct_6_3x1_32_sine', pretrained, progress,
+    return manifold_cct_6('manifold_cct_6_3x1_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -216,10 +215,10 @@ def grassmanian_cct_6_3x1_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_6_3x2_32(pretrained=False, progress=False,
+def manifold_cct_6_3x2_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_6('grassmanian_cct_6_3x2_32', pretrained, progress,
+    return manifold_cct_6('manifold_cct_6_3x2_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -227,10 +226,10 @@ def grassmanian_cct_6_3x2_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_6_3x2_32_sine(pretrained=False, progress=False,
+def manifold_cct_6_3x2_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_6('grassmanian_cct_6_3x2_32_sine', pretrained, progress,
+    return manifold_cct_6('manifold_cct_6_3x2_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -238,10 +237,10 @@ def grassmanian_cct_6_3x2_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x1_32(pretrained=False, progress=False,
+def manifold_cct_7_3x1_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x1_32', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x1_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -249,10 +248,10 @@ def grassmanian_cct_7_3x1_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x1_32_sine(pretrained=False, progress=False,
+def manifold_cct_7_3x1_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x1_32_sine', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x1_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -260,10 +259,10 @@ def grassmanian_cct_7_3x1_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x1_32_c100(pretrained=False, progress=False,
+def manifold_cct_7_3x1_32_c100(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='learnable', num_classes=100,
                                   *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x1_32_c100', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x1_32_c100', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -271,10 +270,10 @@ def grassmanian_cct_7_3x1_32_c100(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x1_32_sine_c100(pretrained=False, progress=False,
+def manifold_cct_7_3x1_32_sine_c100(pretrained=False, progress=False,
                                        img_size=32, positional_embedding='sine', num_classes=100,
                                        *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x1_32_sine_c100', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x1_32_sine_c100', pretrained, progress,
                              kernel_size=3, n_conv_layers=1,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -282,10 +281,10 @@ def grassmanian_cct_7_3x1_32_sine_c100(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x2_32(pretrained=False, progress=False,
+def manifold_cct_7_3x2_32(pretrained=False, progress=False,
                              img_size=32, positional_embedding='learnable', num_classes=10,
                              *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x2_32', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x2_32', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -293,10 +292,10 @@ def grassmanian_cct_7_3x2_32(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_3x2_32_sine(pretrained=False, progress=False,
+def manifold_cct_7_3x2_32_sine(pretrained=False, progress=False,
                                   img_size=32, positional_embedding='sine', num_classes=10,
                                   *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_3x2_32_sine', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_3x2_32_sine', pretrained, progress,
                              kernel_size=3, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -304,10 +303,10 @@ def grassmanian_cct_7_3x2_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_7x2_224(pretrained=False, progress=False,
+def manifold_cct_7_7x2_224(pretrained=False, progress=False,
                               img_size=224, positional_embedding='learnable', num_classes=102,
                               *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_7x2_224', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_7x2_224', pretrained, progress,
                              kernel_size=7, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -315,10 +314,10 @@ def grassmanian_cct_7_7x2_224(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_7_7x2_224_sine(pretrained=False, progress=False,
+def manifold_cct_7_7x2_224_sine(pretrained=False, progress=False,
                                    img_size=224, positional_embedding='sine', num_classes=102,
                                    *args, **kwargs):
-    return grassmanian_cct_7('grassmanian_cct_7_7x2_224_sine', pretrained, progress,
+    return manifold_cct_7('manifold_cct_7_7x2_224_sine', pretrained, progress,
                              kernel_size=7, n_conv_layers=2,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -326,10 +325,10 @@ def grassmanian_cct_7_7x2_224_sine(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_14_7x2_224(pretrained=False, progress=False,
+def manifold_cct_14_7x2_224(pretrained=False, progress=False,
                                img_size=224, positional_embedding='learnable', num_classes=1000,
                                *args, **kwargs):
-    return grassmanian_cct_14('grassmanian_cct_14_7x2_224', pretrained, progress,
+    return manifold_cct_14('manifold_cct_14_7x2_224', pretrained, progress,
                               kernel_size=7, n_conv_layers=2,
                               img_size=img_size, positional_embedding=positional_embedding,
                               num_classes=num_classes,
@@ -337,10 +336,10 @@ def grassmanian_cct_14_7x2_224(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_14_7x2_384(pretrained=False, progress=False,
+def manifold_cct_14_7x2_384(pretrained=False, progress=False,
                                img_size=384, positional_embedding='learnable', num_classes=1000,
                                *args, **kwargs):
-    return grassmanian_cct_14('grassmanian_cct_14_7x2_384', pretrained, progress,
+    return manifold_cct_14('manifold_cct_14_7x2_384', pretrained, progress,
                               kernel_size=7, n_conv_layers=2,
                               img_size=img_size, positional_embedding=positional_embedding,
                               num_classes=num_classes,
@@ -348,10 +347,10 @@ def grassmanian_cct_14_7x2_384(pretrained=False, progress=False,
 
 
 @register_model
-def grassmanian_cct_14_7x2_384_fl(pretrained=False, progress=False,
+def manifold_cct_14_7x2_384_fl(pretrained=False, progress=False,
                                   img_size=384, positional_embedding='learnable', num_classes=102,
                                   *args, **kwargs):
-    return grassmanian_cct_14('grassmanian_cct_14_7x2_384_fl', pretrained, progress,
+    return manifold_cct_14('manifold_cct_14_7x2_384_fl', pretrained, progress,
                               kernel_size=7, n_conv_layers=2,
                               img_size=img_size, positional_embedding=positional_embedding,
                               num_classes=num_classes,

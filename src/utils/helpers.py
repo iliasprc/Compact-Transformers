@@ -1,4 +1,5 @@
 import math
+
 import torch
 import torch.nn.functional as F
 
@@ -7,7 +8,8 @@ def resize_pos_embed(posemb, posemb_new, num_tokens=1):
     # Copied from `timm` by Ross Wightman:
     # github.com/rwightman/pytorch-image-models
     # Rescale the grid of position embeddings when loading from state_dict. Adapted from
-    # https://github.com/google-research/vision_transformer/blob/00883dd691c63a6830751563748663526e811cee/vit_jax/checkpoint.py#L224
+    # https://github.com/google-research/vision_transformer/blob/00883dd691c63a6830751563748663526e811cee/vit_jax
+    # /checkpoint.py#L224
     ntok_new = posemb_new.shape[1]
     if num_tokens:
         posemb_tok, posemb_grid = posemb[:, :num_tokens], posemb[0, num_tokens:]
