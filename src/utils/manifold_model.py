@@ -6,7 +6,7 @@ from einops.layers.torch import Rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
 from src.utils.lds import batch_image_to_Om
-from .lds import Bgrassmanian_point
+from src.utils.riemmanian_utils import log_dist
 from .stochastic_depth import DropPath
 
 
@@ -86,8 +86,8 @@ class ManifoldAttention(nn.Module):
         self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         self.conv_attn = nn.Sequential(
 
-            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1), bias=False),
-            nn.LayerNorm(normalized_shape=self.num_heads))
+            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1), bias=False)
+        )
 
     def forward(self, x):
         B, N, C = x.shape
@@ -97,22 +97,19 @@ class ManifoldAttention(nn.Module):
 
         old_shape = q.shape
 
-        qgr = Bgrassmanian_point(q)
-        kgr = Bgrassmanian_point(k)
-        # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
-
-        qgr = rearrange(qgr, 'b h t d -> b h d t').unsqueeze(-1)
-        kgr = rearrange(kgr, 'b h t d -> b h d t').unsqueeze(-2)
-        dots = torch.matmul(qgr, kgr)  # * self.scale
-
-        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
+        # qgr = Bgrassmanian_point(q)
+        # kgr = Bgrassmanian_point(k)
+        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        #
+        # qgr = rearrange(qgr, 'b h t d -> b h d t').unsqueeze(-1)
+        # kgr = rearrange(kgr, 'b h t d -> b h d t').unsqueeze(-2)
+        # dots = torch.matmul(qgr, kgr)  # * self.scale
+        #
+        # attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
         attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False)
 
-        # print(f'atthn {attn.shape}')
-        # attn = attn
-        # print(attn.shape,attn_grassmman.shape
-        #       )
-        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_grassmman), dim=1)))
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian), dim=1))).softmax(dim=-1)
 
         out = torch.matmul(attn_, v)
         out = rearrange(out, 'b h n d -> b n (h d)')

@@ -205,10 +205,31 @@ You can use our training configurations provided in `configs/`:
 ```shell
 python train.py -c configs/datasets/cifar10.yml --model cct_7_3x1_32 /path/to/cifar10
 ```
+```
+python train.py -c configs/datasets/cifar10.yml --model grassmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
+```
+## ViT
 
-python train.py -c configs/datasets/cifar10.yml --model early_fusion_imgpp_vit_7_4_32 ./data/CIFAR-10-images-master/
+### CIFAR-10
 
+Grassmanian Vit
 
+```
+python train.py -c configs/datasets/cifar10.yml --model manifold_vit_6_4_32  --gpu 0   ./data/CIFAR-10-images-master/
+```
+Riemmanian Vit
+
+```
+python train.py -c configs/datasets/cifar10.yml --model riemmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
+```
+
+### IMAGENET 
+
+Grassmanian Vit
+
+```
+python train.py -c configs/datasets/imagenet.yml --model grassmanian_cct_14_7x2_224 --gpu 0 --log-wandb /home/papastrat/Desktop/imagenet/
+```
 
 ### Models and config files
 We've updated this repository and moved the previous training script and the checkpoints associated 

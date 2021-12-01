@@ -28,7 +28,7 @@ def log_dist(x1, x2, use_covariance=True, use_log=False):
     if use_covariance:
         x1 = covariance(x1)
         x2 = covariance(x2)
-    print(x1.shape())
+
     if use_log:
 
         d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)

@@ -8,6 +8,7 @@ from .lds import log_dist
 from .stochastic_depth import DropPath
 
 
+
 class RiemmanianAttention(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
         super().__init__()
