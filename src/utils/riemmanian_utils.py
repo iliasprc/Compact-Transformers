@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
-from .lds import riemannian_dist
+from .lds import log_dist
 from .stochastic_depth import DropPath
 
 
@@ -27,12 +27,12 @@ class RiemmanianAttention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        dots = riemannian_dist(q, k, use_covariance=True)
-        # print(dots.shape,v.shape)
-        dots = torch.matmul(dots, v)
-        out = torch.softmax(dots, dim=-1)  # *dots
+        dots = log_dist(q, k, use_covariance=True, use_log=False)
+
+        out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
+
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.proj(out)
+        return self.proj_drop(self.proj(out))
 
 
 class RiemmanianEncoderLayer(Module):

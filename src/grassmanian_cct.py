@@ -70,10 +70,10 @@ class GrassmanianCCT(nn.Module):
                                    conv_bias=False)
         self.m = 4
         self.lds_order = 4
-        self.om_layer = nn.Sequential(
-            ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m, lds_size=self.lds_order),
-            nn.Linear(self.m * self.lds_order ** 2, embedding_dim) )
-
+        self.om_layer = nn.Sequential(nn.LayerNorm(embedding_dim),
+                                      ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m,
+                                                         lds_size=self.lds_order),
+                                      nn.Linear(self.m * self.lds_order ** 2, embedding_dim))
         self.classifier = GrassmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -93,7 +93,6 @@ class GrassmanianCCT(nn.Module):
     def forward(self, x):
         x = self.tokenizer(x)
         om = self.om_layer(x)
-
 
         return self.classifier(om)
 

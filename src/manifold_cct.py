@@ -1,8 +1,8 @@
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
-from .utils.manifold_model import ManifoldformerClassifier
 from .utils.helpers import pe_check
+from .utils.manifold_model import ManifoldformerClassifier
 from .utils.tokenizer import Tokenizer
 
 try:
@@ -98,9 +98,9 @@ class ManifoldCCT(nn.Module):
 
 
 def _manifold_cct(arch, pretrained, progress,
-                     num_layers, num_heads, mlp_ratio, embedding_dim,
-                     kernel_size=3, stride=None, padding=None,
-                     *args, **kwargs):
+                  num_layers, num_heads, mlp_ratio, embedding_dim,
+                  kernel_size=3, stride=None, padding=None,
+                  *args, **kwargs):
     stride = stride if stride is not None else max(1, (kernel_size // 2) - 1)
     padding = padding if padding is not None else max(1, (kernel_size // 2))
     model = ManifoldCCT(num_layers=num_layers,
@@ -125,233 +125,233 @@ def _manifold_cct(arch, pretrained, progress,
 
 def manifold_cct_2(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                            *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_cct_4(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                            *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_cct_6(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                            *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_cct_7(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                            *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_cct_14(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=14, num_heads=6, mlp_ratio=3, embedding_dim=384,
-                            *args, **kwargs)
+                         *args, **kwargs)
 
 
 @register_model
 def manifold_cct_2_3x2_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_2('manifold_cct_2_3x2_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_2_3x2_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_2('manifold_cct_2_3x2_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_4_3x2_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_4('manifold_cct_4_3x2_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_4_3x2_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_4('manifold_cct_4_3x2_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_6_3x1_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_6('manifold_cct_6_3x1_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_6_3x1_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_6('manifold_cct_6_3x1_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_6_3x2_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_6('manifold_cct_6_3x2_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_6_3x2_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_6('manifold_cct_6_3x2_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x1_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x1_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x1_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x1_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x1_32_c100(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='learnable', num_classes=100,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='learnable', num_classes=100,
+                               *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x1_32_c100', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x1_32_sine_c100(pretrained=False, progress=False,
-                                       img_size=32, positional_embedding='sine', num_classes=100,
-                                       *args, **kwargs):
+                                    img_size=32, positional_embedding='sine', num_classes=100,
+                                    *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x1_32_sine_c100', pretrained, progress,
-                             kernel_size=3, n_conv_layers=1,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=1,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x2_32(pretrained=False, progress=False,
-                             img_size=32, positional_embedding='learnable', num_classes=10,
-                             *args, **kwargs):
+                          img_size=32, positional_embedding='learnable', num_classes=10,
+                          *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x2_32', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_3x2_32_sine(pretrained=False, progress=False,
-                                  img_size=32, positional_embedding='sine', num_classes=10,
-                                  *args, **kwargs):
+                               img_size=32, positional_embedding='sine', num_classes=10,
+                               *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_3x2_32_sine', pretrained, progress,
-                             kernel_size=3, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=3, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_7x2_224(pretrained=False, progress=False,
-                              img_size=224, positional_embedding='learnable', num_classes=102,
-                              *args, **kwargs):
+                           img_size=224, positional_embedding='learnable', num_classes=102,
+                           *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_7x2_224', pretrained, progress,
-                             kernel_size=7, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=7, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_7_7x2_224_sine(pretrained=False, progress=False,
-                                   img_size=224, positional_embedding='sine', num_classes=102,
-                                   *args, **kwargs):
+                                img_size=224, positional_embedding='sine', num_classes=102,
+                                *args, **kwargs):
     return manifold_cct_7('manifold_cct_7_7x2_224_sine', pretrained, progress,
-                             kernel_size=7, n_conv_layers=2,
-                             img_size=img_size, positional_embedding=positional_embedding,
-                             num_classes=num_classes,
-                             *args, **kwargs)
+                          kernel_size=7, n_conv_layers=2,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_cct_14_7x2_224(pretrained=False, progress=False,
-                               img_size=224, positional_embedding='learnable', num_classes=1000,
-                               *args, **kwargs):
+                            img_size=224, positional_embedding='learnable', num_classes=1000,
+                            *args, **kwargs):
     return manifold_cct_14('manifold_cct_14_7x2_224', pretrained, progress,
-                              kernel_size=7, n_conv_layers=2,
-                              img_size=img_size, positional_embedding=positional_embedding,
-                              num_classes=num_classes,
-                              *args, **kwargs)
+                           kernel_size=7, n_conv_layers=2,
+                           img_size=img_size, positional_embedding=positional_embedding,
+                           num_classes=num_classes,
+                           *args, **kwargs)
 
 
 @register_model
 def manifold_cct_14_7x2_384(pretrained=False, progress=False,
-                               img_size=384, positional_embedding='learnable', num_classes=1000,
-                               *args, **kwargs):
+                            img_size=384, positional_embedding='learnable', num_classes=1000,
+                            *args, **kwargs):
     return manifold_cct_14('manifold_cct_14_7x2_384', pretrained, progress,
-                              kernel_size=7, n_conv_layers=2,
-                              img_size=img_size, positional_embedding=positional_embedding,
-                              num_classes=num_classes,
-                              *args, **kwargs)
+                           kernel_size=7, n_conv_layers=2,
+                           img_size=img_size, positional_embedding=positional_embedding,
+                           num_classes=num_classes,
+                           *args, **kwargs)
 
 
 @register_model
 def manifold_cct_14_7x2_384_fl(pretrained=False, progress=False,
-                                  img_size=384, positional_embedding='learnable', num_classes=102,
-                                  *args, **kwargs):
+                               img_size=384, positional_embedding='learnable', num_classes=102,
+                               *args, **kwargs):
     return manifold_cct_14('manifold_cct_14_7x2_384_fl', pretrained, progress,
-                              kernel_size=7, n_conv_layers=2,
-                              img_size=img_size, positional_embedding=positional_embedding,
-                              num_classes=num_classes,
-                              *args, **kwargs)
+                           kernel_size=7, n_conv_layers=2,
+                           img_size=img_size, positional_embedding=positional_embedding,
+                           num_classes=num_classes,
+                           *args, **kwargs)

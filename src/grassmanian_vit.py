@@ -47,7 +47,7 @@ class GrassmanianViTLite(nn.Module):
                                       ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m,
                                                          lds_size=self.lds_order),
                                       nn.Linear(self.m * self.lds_order ** 2, embedding_dim))
-        # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
+
         self.classifier = GrassmanianformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -65,14 +65,9 @@ class GrassmanianViTLite(nn.Module):
         )
 
     def forward(self, x):
-        # print(om.shape)
         x = self.tokenizer(x)
-        # print(x.shape)
+
         om = self.om_layer(x)
-        # print(x.shape, om.shape)
-        # print(om.shape)
-        # x  = self.tokenizer(x)sss
-        # om = self.project(om)
 
         return self.classifier(om)
 

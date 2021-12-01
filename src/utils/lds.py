@@ -10,14 +10,12 @@ def covariance(X):
 
 
 def riemannian_dist(x1, x2, use_covariance=False):
-    print(x1.shape)
     if use_covariance:
         x1 = covariance(x1)
         x2 = covariance(x2)
-    print(f'x1 {x1.shape} s1')
 
     s = (torch.linalg.inv(x1) @ x2)
-    # print(s.shape)
+
     dist = torch.norm(torch.log(s + s.min() + 1.0), dim=-1, keepdim=True)
     b, h, t, _ = dist.shape
     dist = dist.repeat(1, 1, 1, t)
@@ -138,30 +136,23 @@ def Batch_createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channel
 
         mean_ = torch.mean(block.reshape(bs, T, d, -1), dim=-1).unsqueeze(-1)
 
-        h, w = input_data.shape[-1], input_data.shape[-2],
-        # print('mean ',mean_.shape,'input ',input_data.shape)
         Y = (input_data) - mean_
-        # print('Y ',Y.shape)
-        ##print(f"Y {Y}")
+
         U, S, V = torch.linalg.svd(Y)
-        # print(U.shape,S.shape,V.shape)
+
         V = V.transpose(-2, -1)
 
         U = U[..., :lds_size]
         S = S[..., :lds_size]
         V = V[..., :lds_size]
         S = torch.diag_embed(S)
-        # print(U.shape, S.shape, V.shape)
+
         CLDS = U
 
         Z = torch.matmul(S, V.transpose(-2, -1))
 
         A1 = Z[..., 0:Z.shape[-1] - 1]
         A2 = Z[..., 1:Z.shape[-1]]
-
-        # A1T = torch.linalg.pinv(A1)
-        # # #print(A2)
-        # ALDS = torch.bmm(A2, A1T)
 
         X1_t = torch.transpose(A1, -1, -2)
         A1inv = torch.linalg.pinv(torch.matmul(A1, X1_t))
@@ -171,9 +162,7 @@ def Batch_createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channel
 
 
 def grassmanian_point(Om):
-    Q, R = torch.linalg.qr(Om)  # ,mode='complete')
-    # print(f'Q {Q.shape},R   {R.shape}  Om  {Om.shape}')
-
+    Q, R = torch.linalg.qr(Om)
     return Q, R
 
 
@@ -181,10 +170,8 @@ def image_to_Om(input_tensor, lds_size=3, m=3, num_channels=3):
     assert len(input_tensor.shape) == 3, print(len(input_tensor))
     b, n, c = input_tensor.shape
 
-    # print(f'embed size {input_tensor.size()}')
     OM = torch.FloatTensor()
-    device = input_tensor.get_device()
-    # OM = OM.to(device)
+
     for i in range(b):
         Omtensor = []
         for j in range(n):
