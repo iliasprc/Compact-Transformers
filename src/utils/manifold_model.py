@@ -104,7 +104,7 @@ class ManifoldAttention(nn.Module):
         qgr = qgr.permute(0, 1, 3, 2).unsqueeze(-1)
         kgr = kgr.permute(0, 1, 3, 2).unsqueeze(-2)
 
-        dots = torch.matmul(qgr, kgr)  # * self.scale
+        dots = torch.matmul(qgr, kgr)
 
         attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -114,7 +114,8 @@ class ManifoldAttention(nn.Module):
             dim=-1)
 
         out = torch.matmul(attn_, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        #out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0,2,1,3).reshape(B,N,C)
         return self.proj_drop(self.proj(out))
 
 

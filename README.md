@@ -215,7 +215,7 @@ python train.py -c configs/datasets/cifar10.yml --model grassmanian_vit_6_4_32 -
 Grassmanian Vit
 
 ```
-python train.py -c configs/datasets/cifar10.yml --model manifold_vit_6_4_32  --gpu 0   ./data/CIFAR-10-images-master/
+python train.py -c configs/datasets/cifar10.yml --model manifold_vit_6_4_32  --gpu 0   /home/iliask/PycharmProjects/Compact-Transformers/data/cifar-10-python/cifar-10-batches-py/./data/CIFAR-10-images-master/
 ```
 Riemmanian Vit
 

@@ -1,8 +1,8 @@
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
-from .utils.manifold_model import ManifoldformerClassifier
 from .utils.helpers import pe_check
+from .utils.manifold_model import ManifoldformerClassifier
 from .utils.tokenizer import Tokenizer
 
 try:
@@ -60,7 +60,6 @@ class ManifoldViT(nn.Module):
                                    n_conv_layers=1,
                                    conv_bias=True)
 
-
         self.classifier = ManifoldformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -80,7 +79,6 @@ class ManifoldViT(nn.Module):
     def forward(self, x):
         x = self.tokenizer(x)
 
- 
         return self.classifier(x)
 
 
@@ -112,108 +110,107 @@ def _manifold_vit(arch, pretrained, progress,
 
 def manifold_vit_2(*args, **kwargs):
     return _manifold_vit(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                     *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_vit_4(*args, **kwargs):
     return _manifold_vit(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
-                     *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_vit_6(*args, **kwargs):
     return _manifold_vit(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                     *args, **kwargs)
+                         *args, **kwargs)
 
 
 def manifold_vit_7(*args, **kwargs):
     return _manifold_vit(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
-                     *args, **kwargs)
+                         *args, **kwargs)
 
 
 @register_model
 def manifold_vit_2_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                        img_size=32, positional_embedding='learnable', num_classes=10,
+                        *args, **kwargs):
     return manifold_vit_2('manifold_vit_2_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_2_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                             img_size=32, positional_embedding='sine', num_classes=10,
+                             *args, **kwargs):
     return manifold_vit_2('manifold_vit_2_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_4_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                        img_size=32, positional_embedding='learnable', num_classes=10,
+                        *args, **kwargs):
     return manifold_vit_4('manifold_vit_4_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_4_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                             img_size=32, positional_embedding='sine', num_classes=10,
+                             *args, **kwargs):
     return manifold_vit_4('manifold_vit_4_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_6_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                        img_size=32, positional_embedding='learnable', num_classes=10,
+                        *args, **kwargs):
     return manifold_vit_6('manifold_vit_6_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_6_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                             img_size=32, positional_embedding='sine', num_classes=10,
+                             *args, **kwargs):
     return manifold_vit_6('manifold_vit_6_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_7_4_32(pretrained=False, progress=False,
-               img_size=32, positional_embedding='learnable', num_classes=10,
-               *args, **kwargs):
+                        img_size=32, positional_embedding='learnable', num_classes=10,
+                        *args, **kwargs):
     return manifold_vit_7('manifold_vit_7_4_32', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
 
 
 @register_model
 def manifold_vit_7_4_32_sine(pretrained=False, progress=False,
-                    img_size=32, positional_embedding='sine', num_classes=10,
-                    *args, **kwargs):
+                             img_size=32, positional_embedding='sine', num_classes=10,
+                             *args, **kwargs):
     return manifold_vit_7('manifold_vit_7_4_32_sine', pretrained, progress,
-                 kernel_size=4,
-                 img_size=img_size, positional_embedding=positional_embedding,
-                 num_classes=num_classes,
-                 *args, **kwargs)
-
+                          kernel_size=4,
+                          img_size=img_size, positional_embedding=positional_embedding,
+                          num_classes=num_classes,
+                          *args, **kwargs)
