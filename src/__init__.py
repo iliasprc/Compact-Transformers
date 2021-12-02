@@ -8,3 +8,4 @@ from .riemmanian_vit import *
 from .grassmanian_cct import *
 from .manifold_cct import *
 from .manifold_vit import *
+from .img_gm_riem_vit import *

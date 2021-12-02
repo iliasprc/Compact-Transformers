@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
 from einops.layers.torch import Rearrange
+from einops import rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
 from src.utils.lds import batch_image_to_Om
@@ -90,14 +90,16 @@ class ProjectionAttentionKernel(nn.Module):
 
         q, _ = grassmanian_point(q)
         k, _ = grassmanian_point(k)
-
-        q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
-        k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
+        q = q.permute(0, 1, 3, 2).unsqueeze(-1)
+        k = k.permute(0, 1, 3, 2).unsqueeze(-2)
+        # q = rearrange(q, 'b h t d -> b h d t').unsqueeze(-1)
+        # k = rearrange(k, 'b h t d -> b h d t').unsqueeze(-2)
 
         dots = torch.matmul(q, k)
         attn = self.attn_drop(torch.linalg.norm(dots, dim=2) ** 2.)
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
+        # .transpose(1, 2).reshape(B, N, C)
         return self.proj_drop(self.proj(out))
 
 

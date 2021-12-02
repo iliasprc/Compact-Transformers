@@ -216,3 +216,4 @@ def manifold_vit_7_4_32_sine(pretrained=False, progress=False,
                  img_size=img_size, positional_embedding=positional_embedding,
                  num_classes=num_classes,
                  *args, **kwargs)
+

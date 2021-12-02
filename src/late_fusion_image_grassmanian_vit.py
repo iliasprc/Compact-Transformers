@@ -16,7 +16,7 @@ model_urls = {
 }
 
 
-class Late_fusion_img_grassmannian(nn.Module):
+class img_gm_img_grassmannian(nn.Module):
     def __init__(self,
                  img_size=224,
                  embedding_dim=768,
@@ -31,7 +31,7 @@ class Late_fusion_img_grassmannian(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  *args, **kwargs):
-        super(Late_fusion_img_grassmannian, self).__init__()
+        super(img_gm_img_grassmannian, self).__init__()
         assert img_size % kernel_size == 0, f"Image size ({img_size}) has to be" \
                                             f"divisible by patch size ({kernel_size})"
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
@@ -82,7 +82,7 @@ class Late_fusion_img_grassmannian(nn.Module):
             positional_embedding=positional_embedding
         )
         self.img_classifier.fc = nn.Identity()
-        self.late_fusion_classifier = nn.Sequential(nn.LayerNorm(2 * embedding_dim),
+        self.img_gm_classifier = nn.Sequential(nn.LayerNorm(2 * embedding_dim),
                                                     nn.Linear(2 * embedding_dim, num_classes))
 
     def forward(self, image):
@@ -98,13 +98,13 @@ class Late_fusion_img_grassmannian(nn.Module):
         om_logits = self.om_classifier(obs_matrix)
         # print(img_logits.shape,om_logits.shape)
         # print(x.shape,om_logits.shape)
-        return self.late_fusion_classifier(torch.cat((img_logits, om_logits), dim=-1))
+        return self.img_gm_classifier(torch.cat((img_logits, om_logits), dim=-1))
 
 
-def _late_fusion_vit_lite(arch, pretrained, progress,
+def _img_gm_vit_lite(arch, pretrained, progress,
                           num_layers, num_heads, mlp_ratio, embedding_dim,
                           kernel_size=4, *args, **kwargs):
-    model = Late_fusion_img_grassmannian(num_layers=num_layers,
+    model = img_gm_img_grassmannian(num_layers=num_layers,
                                          num_heads=num_heads,
                                          mlp_ratio=mlp_ratio,
                                          embedding_dim=embedding_dim,
@@ -119,31 +119,31 @@ def _late_fusion_vit_lite(arch, pretrained, progress,
     return model
 
 
-def late_fusion_vit_2(*args, **kwargs):
-    return _late_fusion_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def img_gm_vit_2(*args, **kwargs):
+    return _img_gm_vit_lite(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                  *args, **kwargs)
 
 
-def late_fusion_vit_4(*args, **kwargs):
-    return _late_fusion_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
+def img_gm_vit_4(*args, **kwargs):
+    return _img_gm_vit_lite(num_layers=4, num_heads=2, mlp_ratio=1, embedding_dim=128,
                                  *args, **kwargs)
 
 
-def late_fusion_vit_6(*args, **kwargs):
-    return _late_fusion_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def img_gm_vit_6(*args, **kwargs):
+    return _img_gm_vit_lite(num_layers=6, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                  *args, **kwargs)
 
 
-def late_fusion_vit_7(*args, **kwargs):
-    return _late_fusion_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
+def img_gm_vit_7(*args, **kwargs):
+    return _img_gm_vit_lite(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
                                  *args, **kwargs)
 
 
 @register_model
-def late_fusion_vit_2_4_32(pretrained=False, progress=False,
+def img_gm_vit_2_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return late_fusion_vit_2('late_fusion_vit_2_4_32', pretrained, progress,
+    return img_gm_vit_2('img_gm_vit_2_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -151,10 +151,10 @@ def late_fusion_vit_2_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_2_4_32_sine(pretrained=False, progress=False,
+def img_gm_vit_2_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return late_fusion_vit_2('late_fusion_vit_2_4_32_sine', pretrained, progress,
+    return img_gm_vit_2('img_gm_vit_2_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -162,10 +162,10 @@ def late_fusion_vit_2_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_4_4_32(pretrained=False, progress=False,
+def img_gm_vit_4_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return late_fusion_vit_4('late_fusion_vit_4_4_32', pretrained, progress,
+    return img_gm_vit_4('img_gm_vit_4_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -173,10 +173,10 @@ def late_fusion_vit_4_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_4_4_32_sine(pretrained=False, progress=False,
+def img_gm_vit_4_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return late_fusion_vit_4('late_fusion_vit_4_4_32_sine', pretrained, progress,
+    return img_gm_vit_4('img_gm_vit_4_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -184,10 +184,10 @@ def late_fusion_vit_4_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_6_4_32(pretrained=False, progress=False,
+def img_gm_vit_6_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return late_fusion_vit_6('late_fusion_vit_6_4_32', pretrained, progress,
+    return img_gm_vit_6('img_gm_vit_6_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -195,10 +195,10 @@ def late_fusion_vit_6_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_6_4_32_sine(pretrained=False, progress=False,
+def img_gm_vit_6_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return late_fusion_vit_6('late_fusion_vit_6_4_32_sine', pretrained, progress,
+    return img_gm_vit_6('img_gm_vit_6_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -206,10 +206,10 @@ def late_fusion_vit_6_4_32_sine(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_7_4_32(pretrained=False, progress=False,
+def img_gm_vit_7_4_32(pretrained=False, progress=False,
                            img_size=32, positional_embedding='learnable', num_classes=10,
                            *args, **kwargs):
-    return late_fusion_vit_7('late_fusion_vit_7_4_32', pretrained, progress,
+    return img_gm_vit_7('img_gm_vit_7_4_32', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
@@ -217,10 +217,10 @@ def late_fusion_vit_7_4_32(pretrained=False, progress=False,
 
 
 @register_model
-def late_fusion_vit_7_4_32_sine(pretrained=False, progress=False,
+def img_gm_vit_7_4_32_sine(pretrained=False, progress=False,
                                 img_size=32, positional_embedding='sine', num_classes=10,
                                 *args, **kwargs):
-    return late_fusion_vit_7('late_fusion_vit_7_4_32_sine', pretrained, progress,
+    return img_gm_vit_7('img_gm_vit_7_4_32_sine', pretrained, progress,
                              kernel_size=4,
                              img_size=img_size, positional_embedding=positional_embedding,
                              num_classes=num_classes,
