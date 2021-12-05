@@ -41,8 +41,8 @@ class GrassmanianViTLite(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.m = 4
-        self.lds_order = 4
+        self.m = 3
+        self.lds_order = 8
         self.om_layer = nn.Sequential(nn.LayerNorm(embedding_dim),
                                       ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m,
                                                          lds_size=self.lds_order),

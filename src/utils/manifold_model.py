@@ -86,7 +86,8 @@ class ManifoldAttention(nn.Module):
         self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         self.conv_attn = nn.Sequential(
 
-            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1), bias=False)
+            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),
+                      nn.LayerNorm(normalized_shape=(num_heads,sequence_length,sequence_length))
         )
 
     def forward(self, x):
@@ -97,20 +98,21 @@ class ManifoldAttention(nn.Module):
 
         old_shape = q.shape
 
-        qgr, _ = grassmanian_point(q)
-        kgr, _ = grassmanian_point(k)
-        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        # qgr, _ = grassmanian_point(q)
+        # kgr, _ = grassmanian_point(k)
+        # #print(qgr.shape)
+        # # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        # #
+        # qgr = qgr#.permute(0, 1, 3, 2)
+        # kgr = kgr.permute(0, 1, 3, 2)
         #
-        qgr = qgr.permute(0, 1, 3, 2).unsqueeze(-1)
-        kgr = kgr.permute(0, 1, 3, 2).unsqueeze(-2)
-
-        dots = torch.matmul(qgr, kgr)
-
-        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
+        # dots = torch.matmul(qgr, kgr).unsqueeze(2)
+        #
+        # attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False)
 
-        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian, attn_grassmman), dim=1))).softmax(
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian), dim=1))).softmax(
             dim=-1)
 
         out = torch.matmul(attn_, v)
