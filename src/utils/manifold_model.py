@@ -69,7 +69,8 @@ class ObsMatrixTokenizer(nn.Module):
         return x
 
 
-class ManifoldAttention(nn.Module):
+
+class EuclRiemGrassAtt(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
         super().__init__()
 
@@ -77,7 +78,56 @@ class ManifoldAttention(nn.Module):
         head_dim = dim // self.num_heads
         self.scale = head_dim ** -0.5
 
-        self.qkv = Linear(dim, dim * 3, bias=False)
+        self.qkv = Linear(dim, dim * 3, bias=True)
+
+        self.attn_drop = Dropout(attention_dropout)
+        self.proj = Linear(dim, dim)
+        self.proj_drop = Dropout(projection_dropout)
+        self.sequence_len = sequence_length
+        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        self.conv_attn = nn.Sequential(
+
+            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),
+                      nn.LayerNorm(normalized_shape=(num_heads,sequence_length,sequence_length))
+        )
+
+    def forward(self, x):
+        B, N, C = x.shape
+
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+
+
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+
+        qgr = qgr#.permute(0, 1, 3, 2)
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False)
+
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian,attn_grassmman), dim=1))).softmax(
+            dim=-1)
+
+        out = torch.matmul(attn_, v)
+
+        out = out.permute(0,2,1,3).reshape(B,N,C)
+        return self.proj_drop(self.proj(out))
+
+class EuclideanRiemmanianAtt(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+        super().__init__()
+
+        self.num_heads = num_heads
+        head_dim = dim // self.num_heads
+        self.scale = head_dim ** -0.5
+
+        self.qkv = Linear(dim, dim * 3, bias=True)
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -130,9 +180,9 @@ class ManifoldEncoderLayer(Module):
                  attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        self.self_attn = ManifoldAttention(dim=d_model, num_heads=nhead,
-                                           attention_dropout=attention_dropout, projection_dropout=dropout,
-                                           sequence_length=sequence_length)
+        self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
+                                                attention_dropout=attention_dropout, projection_dropout=dropout,
+                                                sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)

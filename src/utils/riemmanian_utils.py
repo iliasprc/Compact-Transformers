@@ -32,7 +32,7 @@ class RiemmanianAttention(nn.Module):
 
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0,2,1,3).reshape(B,N,C)
         return self.proj_drop(self.proj(out))
 
 

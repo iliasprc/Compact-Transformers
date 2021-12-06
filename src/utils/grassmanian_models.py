@@ -98,7 +98,7 @@ class ProjectionAttentionKernel(nn.Module):
         dots = torch.matmul(q, k)
         attn = self.attn_drop(torch.linalg.norm(dots, dim=2) ** 2.)
         out = torch.matmul(attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
         # .transpose(1, 2).reshape(B, N, C)
         return self.proj_drop(self.proj(out))
 
