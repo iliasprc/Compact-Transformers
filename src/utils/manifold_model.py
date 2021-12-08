@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
 from einops.layers.torch import Rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
@@ -69,26 +68,25 @@ class ObsMatrixTokenizer(nn.Module):
         return x
 
 
-
-class EuclRiemGrassAtt(nn.Module):
+class RiemGrassAtt(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = head_dim ** -0.5
 
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.qkv = Linear(dim, dim * 3, bias=True)
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
-        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
-        self.conv_attn = nn.Sequential(
 
-            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),
-                      nn.LayerNorm(normalized_shape=(num_heads,sequence_length,sequence_length))
+        self.conv_attn = nn.Sequential(
+            nn.LayerNorm(normalized_shape=(2 * num_heads, sequence_length, sequence_length)),
+            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
         )
 
     def forward(self, x):
@@ -97,26 +95,79 @@ class EuclRiemGrassAtt(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-
+        # old_shape = q.shape
 
         qgr, _ = grassmanian_point(q)
         kgr, _ = grassmanian_point(k)
-
-        qgr = qgr#.permute(0, 1, 3, 2)
+        # print(qgr.shape)
+        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        #
+        qgr = qgr  # .permute(0, 1, 3, 2)
         kgr = kgr.permute(0, 1, 3, 2)
 
         dots = torch.matmul(qgr, kgr).unsqueeze(2)
 
-        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False)
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
 
-        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian,attn_grassmman), dim=1))).softmax(
+        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False) * self.riem_scale
+
+        attn_ = self.conv_attn(self.attn_drop(torch.cat(( attn_riemmanian, attn_grassmman), dim=1))).softmax(
             dim=-1)
 
         out = torch.matmul(attn_, v)
+        # out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
+        return self.proj_drop(self.proj(out))
 
-        out = out.permute(0,2,1,3).reshape(B,N,C)
+class EuclRiemGrassAtt(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+        super().__init__()
+
+        self.num_heads = num_heads
+        head_dim = dim // self.num_heads
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.qkv = Linear(dim, dim * 3, bias=True)
+
+        self.attn_drop = Dropout(attention_dropout)
+        self.proj = Linear(dim, dim)
+        self.proj_drop = Dropout(projection_dropout)
+        self.sequence_len = sequence_length
+        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        self.conv_attn = nn.Sequential(
+            nn.LayerNorm(normalized_shape=(3 * num_heads, sequence_length, sequence_length)),
+            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+        )
+
+    def forward(self, x):
+        B, N, C = x.shape
+
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        # old_shape = q.shape
+
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+        # print(qgr.shape)
+        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        #
+        qgr = qgr  # .permute(0, 1, 3, 2)
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False) * self.riem_scale
+
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian, attn_grassmman), dim=1))).softmax(
+            dim=-1)
+
+        out = torch.matmul(attn_, v)
+        # out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
         return self.proj_drop(self.proj(out))
 
 class EuclideanRiemmanianAtt(nn.Module):
@@ -126,7 +177,9 @@ class EuclideanRiemmanianAtt(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
         self.scale = head_dim ** -0.5
-
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.qkv = Linear(dim, dim * 3, bias=True)
 
         self.attn_drop = Dropout(attention_dropout)
@@ -135,9 +188,8 @@ class EuclideanRiemmanianAtt(nn.Module):
         self.sequence_len = sequence_length
         self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         self.conv_attn = nn.Sequential(
-
-            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),
-                      nn.LayerNorm(normalized_shape=(num_heads,sequence_length,sequence_length))
+            nn.LayerNorm(normalized_shape=(2 * num_heads, sequence_length, sequence_length)),
+            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
         )
 
     def forward(self, x):
@@ -159,15 +211,14 @@ class EuclideanRiemmanianAtt(nn.Module):
         # dots = torch.matmul(qgr, kgr).unsqueeze(2)
         #
         # attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2.
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        attn_riemmanian = log_dist(q, k, use_covariance=True, use_log=False)
+        attn = ((q @ k.transpose(-2, -1)) * self.scale)
+        attn_riemmanian = (log_dist(q, k, use_covariance=True, use_log=False) * self.riem_scale)
 
-        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian), dim=1))).softmax(
-            dim=-1)
+        attn_ = self.conv_attn(self.attn_drop(torch.cat((attn, attn_riemmanian), dim=1))).softmax(dim=-1)
 
         out = torch.matmul(attn_, v)
-        #out = rearrange(out, 'b h n d -> b n (h d)')
-        out = out.permute(0,2,1,3).reshape(B,N,C)
+
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
         return self.proj_drop(self.proj(out))
 
 
@@ -180,9 +231,9 @@ class ManifoldEncoderLayer(Module):
                  attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
-                                                attention_dropout=attention_dropout, projection_dropout=dropout,
-                                                sequence_length=sequence_length)
+        self.self_attn = RiemGrassAtt(dim=d_model, num_heads=nhead,
+                                          attention_dropout=attention_dropout, projection_dropout=dropout,
+                                          sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)

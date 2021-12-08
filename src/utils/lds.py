@@ -23,7 +23,7 @@ def riemannian_dist(x1, x2, use_covariance=False):
     return dist
 
 
-def log_dist(x1, x2, use_covariance=True, use_log=False):
+def log_dist1(x1, x2, use_covariance=True, use_log=False):
     # print(x1.shape)
     if use_covariance:
         x1 = covariance(x1)
@@ -42,7 +42,23 @@ def log_dist(x1, x2, use_covariance=True, use_log=False):
 
     return dist
 
+def log_dist(x1, x2, use_covariance=True, use_log=False):
+    # print(x1.shape)
+    if use_covariance:
+        x1 = covariance(x1)
+        x2 = covariance(x2)
 
+    if use_log:
+
+        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
+    else:
+        d = x1 - x2
+    # print(d.min(),d.max())
+    dist = torch.norm(d.unsqueeze(-1), dim=-1)
+
+    # print(dist.shape)
+
+    return dist
 # a = torch.randn(4,10,64)
 # b = torch.randn(4,10,64)
 # d = riemannian_dist(a,b)
