@@ -231,7 +231,7 @@ class ManifoldEncoderLayer(Module):
                  attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        self.self_attn = RiemGrassAtt(dim=d_model, num_heads=nhead,
+        self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
                                           attention_dropout=attention_dropout, projection_dropout=dropout,
                                           sequence_length=sequence_length)
 

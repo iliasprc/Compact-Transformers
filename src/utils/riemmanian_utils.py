@@ -10,14 +10,16 @@ from .stochastic_depth import DropPath
 
 
 class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1,sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = head_dim ** -0.5
-
-        self.qkv = Linear(dim, dim * 3, bias=False)
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.sequence_length = sequence_length
+        self.qkv = Linear(dim, dim * 3, bias=True)
+        if self.sequence_length!=-1:
+            self.norm = nn.LayerNorm(normalized_shape=( num_heads, sequence_length, sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -29,7 +31,8 @@ class RiemmanianAttention(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         dots = log_dist(q, k, use_covariance=True, use_log=False)
-
+        if self.sequence_length != -1:
+            dots = self.norm(dots)
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
         out = out.permute(0,2,1,3).reshape(B,N,C)
@@ -42,11 +45,11 @@ class RiemmanianEncoderLayer(Module):
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1):
+                 attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
         super(RiemmanianEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         self.self_attn = RiemmanianAttention(dim=d_model, num_heads=nhead,
-                                             attention_dropout=attention_dropout, projection_dropout=dropout)
+                                             attention_dropout=attention_dropout, projection_dropout=dropout, sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -115,7 +118,7 @@ class RiemmanianformerClassifier(Module):
         self.blocks = ModuleList([
             RiemmanianEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                    dim_feedforward=dim_feedforward, dropout=dropout,
-                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i])
+                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i],sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 

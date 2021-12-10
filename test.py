@@ -13,7 +13,7 @@ import numpy as np
 
 from src import *
 from src.grassmanian_vit import *
-from src.late_fusion_image_grassmanian_vit import *
+from src.img_gm_vit import *
 from src.manifold_vit import *
 
 m = grassmanian_vit_6_4_32()
