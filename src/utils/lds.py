@@ -68,6 +68,13 @@ def log_dist(x1, x2, use_covariance=True, use_log=False):
 # cov_ = covariance(inp)
 # print(cov_.shape)
 
+def cov_frobenius_norm(x1, x2):
+    x1 = covariance(x1)
+    x2 = covariance(x2)
+    dots = torch.matmul(x1, x2.transpose(-1,-2)).unsqueeze(2)
+
+    attn_grassmman = torch.linalg.norm(dots, dim=2)
+    return attn_grassmman
 def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
     # % % HLDS = 0
     # % % lds_size = 4

@@ -19,7 +19,7 @@ class RiemmanianAttention(nn.Module):
         self.sequence_length = sequence_length
         self.qkv = Linear(dim, dim * 3, bias=True)
         if self.sequence_length!=-1:
-            self.norm = nn.LayerNorm(normalized_shape=( num_heads, sequence_length, sequence_length))
+            self.norm = nn.LayerNorm(normalized_shape=( sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)

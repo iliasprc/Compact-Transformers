@@ -144,7 +144,7 @@ python train.py -c configs/datasets/cifar10.yml --model riemmanian_vit_6_4_32 --
 Grassmanian Vit
 
 ```
-python train.py -c configs/datasets/imagenet.yml --model grassmanian_cct_14_7x2_224 --gpu 0 --log-wandb /home/papastrat/Desktop/imagenet/
+
 ```
 
 ### Models and config files
