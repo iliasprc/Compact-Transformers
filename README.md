@@ -79,6 +79,8 @@ Please note that the models missing pretrained weights will be updated soon. The
 trained using our old training script, and we're working on training them again with the new script 
 for consistency.
 
+
+python train.py -c configs/datasets/cifar100.yml --model manifold_cvt_6_4_32  --gpu 1 --log-wandb  ./data/cifar100
 You could even create your own models with different image resolutions, positional embeddings, and number of classes:
 ```python3
 from src import cct_14_7x2_384, cct_7_7x2_224_sine

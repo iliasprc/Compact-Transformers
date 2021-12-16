@@ -4,7 +4,7 @@ from torch.hub import load_state_dict_from_url
 
 from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
 from .utils.helpers import pe_check
-from .utils.riemmanian_utils import RiemmanianformerClassifier
+from .utils.riemmanian_model import RiemmanianformerClassifier
 from .utils.tokenizer import Tokenizer
 from .utils.transformers import TransformerClassifier
 

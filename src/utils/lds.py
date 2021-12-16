@@ -2,79 +2,9 @@ import numpy as np
 import torch
 
 
-def covariance(X):
-    D = X.shape[-1]
-    mean = torch.mean(X, dim=-1).unsqueeze(-1)
-    X = X - mean
-    return 1 / (D - 1) * X @ X.transpose(-1, -2)
 
 
-def riemannian_dist(x1, x2, use_covariance=False):
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
 
-    s = (torch.linalg.inv(x1) @ x2)
-
-    dist = torch.norm(torch.log(s + s.min() + 1.0), dim=-1, keepdim=True)
-    b, h, t, _ = dist.shape
-    dist = dist.repeat(1, 1, 1, t)
-    # print(dist.shape)
-    return dist
-
-
-def log_dist1(x1, x2, use_covariance=True, use_log=False):
-    # print(x1.shape)
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
-
-    if use_log:
-
-        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
-    else:
-        d = x1 - x2
-    # print(d.min(),d.max())
-    dist = torch.norm(d, dim=-1, keepdim=True)
-    b, h, t, _ = dist.shape
-    dist = dist.repeat(1, 1, 1, t)
-    # print(dist.shape)
-
-    return dist
-
-def log_dist(x1, x2, use_covariance=True, use_log=False):
-    # print(x1.shape)
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
-
-    if use_log:
-
-        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
-    else:
-        d = x1 - x2
-    # print(d.min(),d.max())
-    dist = torch.norm(d.unsqueeze(-1), dim=-1)
-
-    # print(dist.shape)
-
-    return dist
-# a = torch.randn(4,10,64)
-# b = torch.randn(4,10,64)
-# d = riemannian_dist(a,b)
-# print((d*a).shape)
-
-# inp = torch.randn(4,10,64)
-# cov_ = covariance(inp)
-# print(cov_.shape)
-
-def cov_frobenius_norm(x1, x2):
-    x1 = covariance(x1)
-    x2 = covariance(x2)
-    dots = torch.matmul(x1, x2.transpose(-1,-2)).unsqueeze(2)
-
-    attn_grassmman = torch.linalg.norm(dots, dim=2)
-    return attn_grassmman
 def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
     # % % HLDS = 0
     # % % lds_size = 4

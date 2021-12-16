@@ -1,16 +1,82 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
-from .lds import log_dist
 from .stochastic_depth import DropPath
 
 
+def covariance(X):
+    D = X.shape[-1]
+    mean = torch.mean(X, dim=-1).unsqueeze(-1)
+    X = X - mean
+    return 1 / (D - 1) * X @ X.transpose(-1, -2)
+
+
+def riemannian_dist(x1, x2, use_covariance=False):
+    if use_covariance:
+        x1 = covariance(x1)
+        x2 = covariance(x2)
+
+    s = (torch.linalg.inv(x1) @ x2)
+
+    dist = torch.norm(torch.log(s + s.min() + 1.0), dim=-1, keepdim=True)
+    b, h, t, _ = dist.shape
+    dist = dist.repeat(1, 1, 1, t)
+    # print(dist.shape)
+    return dist
+
+
+def log_dist1(x1, x2, use_covariance=True, use_log=False):
+    # print(x1.shape)
+    if use_covariance:
+        x1 = covariance(x1)
+        x2 = covariance(x2)
+
+    if use_log:
+
+        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
+    else:
+        d = x1 - x2
+    # print(d.min(),d.max())
+    dist = torch.norm(d, dim=-1, keepdim=True)
+    b, h, t, _ = dist.shape
+    dist = dist.repeat(1, 1, 1, t)
+    # print(dist.shape)
+
+    return dist
+
+
+def log_dist(x1, x2, use_covariance=True, use_log=False):
+    # print(x1.shape)
+    if use_covariance:
+        x1 = covariance(x1)
+        x2 = covariance(x2)
+
+    if use_log:
+
+        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
+    else:
+        d = x1 - x2
+    # print(d.min(),d.max())
+    dist = torch.norm(d.unsqueeze(-1), dim=-1)
+
+    # print(dist.shape)
+
+    return dist
+
+
+def cov_frobenius_norm(x1, x2):
+    x1 = covariance(x1)
+    x2 = covariance(x2)
+    dots = torch.matmul(x1, x2.transpose(-1, -2)).unsqueeze(2)
+
+    attn_grassmman = torch.linalg.norm(dots, dim=2)
+    return attn_grassmman
+
 
 class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1,sequence_length=-1):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
@@ -18,8 +84,8 @@ class RiemmanianAttention(nn.Module):
         self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.sequence_length = sequence_length
         self.qkv = Linear(dim, dim * 3, bias=True)
-        if self.sequence_length!=-1:
-            self.norm = nn.LayerNorm(normalized_shape=( sequence_length))
+        if self.sequence_length != -1:
+            self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -35,7 +101,7 @@ class RiemmanianAttention(nn.Module):
             dots = self.norm(dots)
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
-        out = out.permute(0,2,1,3).reshape(B,N,C)
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
         return self.proj_drop(self.proj(out))
 
 
@@ -49,7 +115,8 @@ class RiemmanianEncoderLayer(Module):
         super(RiemmanianEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         self.self_attn = RiemmanianAttention(dim=d_model, num_heads=nhead,
-                                             attention_dropout=attention_dropout, projection_dropout=dropout, sequence_length=sequence_length)
+                                             attention_dropout=attention_dropout, projection_dropout=dropout,
+                                             sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -118,7 +185,8 @@ class RiemmanianformerClassifier(Module):
         self.blocks = ModuleList([
             RiemmanianEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                    dim_feedforward=dim_feedforward, dropout=dropout,
-                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i],sequence_length=sequence_length)
+                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i],
+                                   sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
