@@ -4,12 +4,11 @@ import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
-from src.utils.lds import batch_image_to_Om
-from .lds import grassmanian_point
+from src.utils.lds import batch_image_to_Om,grassmanian_point
 from .stochastic_depth import DropPath
 
 
-################  GRASSMANN  ######################################33
+################  GRASSMANN LIASSS ######################################33
 class NonTrainableObsMatrixModule(nn.Module):
     def __init__(self, image_size=224, patch_size=16, channels=3, m=13, lds_size=3):
         super().__init__()
@@ -36,7 +35,7 @@ class NonTrainableObsMatrixModule(nn.Module):
         with torch.no_grad():
             x = self.to_patch_embedding(img)
 
-            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m, num_channels=self.num_input_channels)
+            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
         return x
 
 
@@ -90,7 +89,6 @@ class ProjectionAttentionKernel(nn.Module):
 
         qgr, _ = grassmanian_point(q)
         kgr, _ = grassmanian_point(k)
-
 
         kgr = kgr.permute(0, 1, 3, 2)
 
@@ -232,11 +230,12 @@ class GrassmanianEncoderLayer(Module):
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1,sequence_length=-1):
+                 attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
         super(GrassmanianEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         self.self_attn = ProjectionAttentionKernel(dim=d_model, num_heads=nhead,
-                                                   attention_dropout=attention_dropout, projection_dropout=dropout,sequence_length=sequence_length)
+                                                   attention_dropout=attention_dropout, projection_dropout=dropout,
+                                                   sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -305,7 +304,8 @@ class GrassmanianformerClassifier(Module):
         self.blocks = ModuleList([
             GrassmanianEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                     dim_feedforward=dim_feedforward, dropout=dropout,
-                                    attention_dropout=attention_dropout, drop_path_rate=dpr[i],sequence_length=sequence_length)
+                                    attention_dropout=attention_dropout, drop_path_rate=dpr[i],
+                                    sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
@@ -354,5 +354,3 @@ class GrassmanianformerClassifier(Module):
         pe[:, 0::2] = torch.sin(pe[:, 0::2])
         pe[:, 1::2] = torch.cos(pe[:, 1::2])
         return pe.unsqueeze(0)
-
-

@@ -53,6 +53,7 @@ class ManifoldCVT(nn.Module):
                  mlp_ratio=4.0,
                  num_classes=1000,
                  positional_embedding='learnable',
+                 attention_type='all',
                  *args, **kwargs):
         super(ManifoldCVT, self).__init__()
 
@@ -67,7 +68,6 @@ class ManifoldCVT(nn.Module):
                                    conv_bias=True)
 
 
-        # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
         self.classifier = ManifoldformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
                                                            height=img_size,
@@ -81,7 +81,8 @@ class ManifoldCVT(nn.Module):
             num_heads=num_heads,
             mlp_ratio=mlp_ratio,
             num_classes=num_classes,
-            positional_embedding=positional_embedding
+            positional_embedding=positional_embedding,
+            attention_type=attention_type
         )
 
     def forward(self, x):

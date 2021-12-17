@@ -20,6 +20,7 @@ import logging
 import os
 import time
 import torch
+import shutil
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
@@ -83,6 +84,8 @@ def arguments():
                         help='dataset validation split (default: validation)')
     parser.add_argument('--model', default='resnet101', type=str, metavar='MODEL',
                         help='Name of model to train (default: "countception"')
+    parser.add_argument('--attention_type', default='all', type=str, metavar='ATT',
+                        help='Type of attention to use',choices=('self','gm','riem','all'))
     parser.add_argument('--pretrained', action='store_true', default=False,
                         help='Start with pretrained version of specified network (if avail)')
     parser.add_argument('--initial-checkpoint', default='', type=str, metavar='PATH',
@@ -368,7 +371,8 @@ def main():
         bn_momentum=args.bn_momentum,
         bn_eps=args.bn_eps,
         scriptable=args.torchscript,
-        checkpoint_path=args.initial_checkpoint)
+        checkpoint_path=args.initial_checkpoint,
+        attention_type=args.attention_type)
     if args.num_classes is None:
         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'
         args.num_classes = model.num_classes  # FIXME handle model default vs config num_classes more elegantly
@@ -587,8 +591,8 @@ def main():
         with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
 
-    import shutil
-    shutil.copytree(f'./src', output_dir + '/src')
+
+        shutil.copytree(f'./src', output_dir + '/src')
     _logger.info(model)
     try:
         for epoch in range(start_epoch, num_epochs):

@@ -47,6 +47,7 @@ class ManifoldViT(nn.Module):
                  mlp_ratio=4.0,
                  num_classes=1000,
                  positional_embedding='learnable',
+                 attention_type='all',
                  *args, **kwargs):
         super(ManifoldViT, self).__init__()
 
@@ -73,7 +74,8 @@ class ManifoldViT(nn.Module):
             num_heads=num_heads,
             mlp_ratio=mlp_ratio,
             num_classes=num_classes,
-            positional_embedding=positional_embedding
+            positional_embedding=positional_embedding,
+            attention_type=attention_type
         )
 
     def forward(self, x):

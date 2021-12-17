@@ -1,71 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops.layers.torch import Rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
-from src.utils.lds import batch_image_to_Om, grassmanian_point
+from src.utils.lds import grassmanian_point
 from src.utils.riemmanian_model import cov_frobenius_norm
 from .stochastic_depth import DropPath
-
-
-################  GRASSMANN LIASSS ######################################33
-class NonTrainableObsMatrixModule(nn.Module):
-    def __init__(self, image_size=224, patch_size=16, channels=3, m=13, lds_size=3):
-        super().__init__()
-        # image_height, image_width = pair(image_size)
-        # patch_height, patch_width = pair(patch_size)
-
-        assert image_size % patch_size == 0, 'Image dimensions must be ' \
-                                             'divisible by the patch size.'
-
-        num_patches = (image_size // patch_size) ** 2
-        patch_dim = channels * patch_size ** 2
-
-        self.to_patch_embedding = Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size)
-
-        self.project = True
-
-        self.m = m
-        self.lds_size = lds_size
-        self.num_input_channels = 3
-        self.num_patches = num_patches
-        self.patc_dim = patch_dim
-
-    def forward(self, img):
-        with torch.no_grad():
-            x = self.to_patch_embedding(img)
-
-            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m, num_channels=self.num_input_channels)
-        return x
-
-
-class ObsMatrixTokenizer(nn.Module):
-    def __init__(self, image_size=224, patch_size=16, channels=3, m=4, lds_size=4, return_gradients=True):
-        super().__init__()
-        # image_height, image_width = pair(image_size)
-        # patch_height, patch_width = pair(patch_size)
-        #
-        # assert image_size % patch_size == 0, f' { image_size} {patch_size} Image dimensions must be ' \
-        #                                      'divisible by the patch size.'
-
-        num_patches = (image_size // patch_size) ** 2
-        patch_dim = channels * patch_size ** 2
-
-        self.project = True
-
-        self.m = m
-        self.lds_size = lds_size
-        self.num_input_channels = channels
-        self.return_gradients = return_gradients
-
-    def forward(self, x):
-        if self.return_gradients:
-            x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
-        else:
-            with torch.no_grad():
-                x = batch_image_to_Om(x, lds_size=self.lds_size, m=self.m)
-        return x
 
 
 class RiemGrassAtt(nn.Module):
@@ -217,15 +157,23 @@ class EuclideanRiemmanianAtt(nn.Module):
 class ManifoldEncoderLayer(Module):
     """
     Inspired by torch.nn.TransformerEncoderLayer and timm.
+    Attenion on riemmanian and grassmanian manifolds
+
+
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1, sequence_length=-1):
+                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='all', sequence_length=-1, ):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
-                                                attention_dropout=attention_dropout, projection_dropout=dropout,
-                                                sequence_length=sequence_length)
+        if attention_type == 'riem':
+            self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
+                                                    attention_dropout=attention_dropout, projection_dropout=dropout,
+                                                    sequence_length=sequence_length)
+        elif attention_type == 'all':
+            self.self_attn = EuclRiemGrassAtt(dim=d_model, num_heads=nhead,
+                                              attention_dropout=attention_dropout, projection_dropout=dropout,
+                                              sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -257,7 +205,7 @@ class ManifoldformerClassifier(Module):
                  attention_dropout=0.1,
                  stochastic_depth=0.1,
                  positional_embedding='learnable',
-                 use_grassman=True,
+                 attention_type='all',
                  sequence_length=None):
         super().__init__()
         positional_embedding = positional_embedding if \
@@ -266,6 +214,7 @@ class ManifoldformerClassifier(Module):
         self.embedding_dim = embedding_dim
         self.sequence_length = sequence_length
         self.seq_pool = seq_pool
+        self.attention_type = attention_type
 
         assert sequence_length is not None or positional_embedding == 'none', \
             f"Positional embedding is set to {positional_embedding} and" \
@@ -295,6 +244,7 @@ class ManifoldformerClassifier(Module):
             ManifoldEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                  dim_feedforward=dim_feedforward, dropout=dropout,
                                  attention_dropout=attention_dropout, drop_path_rate=dpr[i],
+                                 attention_type=attention_type,
                                  sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)

@@ -122,32 +122,6 @@ python train.py -c configs/datasets/cifar10.yml --model cct_7_3x1_32 /path/to/ci
 ```
 python train.py -c configs/datasets/cifar10.yml --model grassmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
 ```
-## ViT
-
-
-python train.py -c configs/datasets/cifar100.yml --model img_gm_riem_vit_6_4_32 --gpu 0  ./data/cifar100
-
-
-### CIFAR-10
-
-Grassmanian Vit
-
-```
-python train.py -c configs/datasets/cifar10.yml --model manifold_vit_6_4_32  --gpu 0   /home/iliask/PycharmProjects/Compact-Transformers/data/cifar-10-python/cifar-10-batches-py/./data/CIFAR-10-images-master/
-```
-Riemmanian Vit
-
-```
-python train.py -c configs/datasets/cifar10.yml --model riemmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
-```
-
-### ImageNet 
-
-Grassmanian Vit
-
-```
-
-```
 
 ### Models and config files
 We've updated this repository and moved the previous training script and the checkpoints associated 

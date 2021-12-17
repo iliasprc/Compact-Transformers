@@ -11,7 +11,7 @@ smaller patching can be used to train efficiently on smaller datasets.
 encoder, eliminating the need for the class token while achieving better
 accuracy.
 
-## Our research models
+## Our research models with Riemmanian and Grassmanian Manifold
 #### early_fusion_image_grassmanian_vit 
 
 Early fusion of image patches and observability matrices as input to a vanilla transformer
@@ -22,31 +22,80 @@ Early fusion of image patches and observability matrices as input to a vanilla t
 ### grassmanian_vit
 
 Grassmanian  Transformer with attention that adopts SVD and QR decompositions to extract observability and orthogonal matrices,
-while the attention is caluclated from distance on grasmmanian manifold
+while the attention is calculated from distance on grasmmanian manifold
+
+```
+python train.py -c configs/datasets/dataset.yml --model gm_vit_6_4_32   /dataset_path
+```
 
 
 ### img_gm_vit   
 
 Late fusion of output of the two transformers, vanilla-Transformer and Grassmanian Transformer
 
+```
+python train.py -c configs/datasets/dataset.yml --model img_gm_vit_6_4_32   /dataset_path
+```
+
 ### img_riem_vit 
 
 Late fusion of output of the two transformers, vanilla-Transformer and Riemmanian Transformer
 
 
+```
+python train.py -c configs/datasets/dataset.yml --model img_riem_vit_6_4_32   /dataset_path
+```
+
 ###  riemmanian_vit 
 
 Riemmanian Transformer with attention that adopts covariance matrices and distance on riemmanian manifold
 
+
+
+```
+python train.py -c configs/datasets/dataset.yml --model riem_vit_6_4_32   /dataset_path
+```
+
 ### img_gm_riem_vit  
+
+```
+python train.py -c configs/datasets/dataset.yml --model img_gm_riem_vit_6_4_32   /dataset_path
+```
+
 
 ### gm_riem_vit  
 
-
+```
+python train.py -c configs/datasets/dataset.yml --model gm_riem_vit_6_4_32   /dataset_path
+```
 
 
 
 ### manifold_cct  
 
+
+To train manifold_cct with:
+
+- Riemmanian+Self attention
+```
+python train.py -c configs/datasets/dataset.yml --model manifold_ctt_7_3x2_32   --attention_type riem  /datapath
+```
+
+- Riemmanian+Grassmanian+Self attention
+```
+python train.py -c configs/datasets/dataset.yml --model manifold_ctt_7_3x2_32  --attention_type all  /datapath
+```
+
 ### manifold_vit  
 
+To train manifold_vit with:
+
+- Riemmanian+Self attention
+```
+python train.py -c configs/datasets/dataset.yml --model manifold_vit_x_y_32 - --attention_type riem  /datapath
+```
+
+- Riemmanian+Grassmanian+Self attention
+```
+python train.py -c configs/datasets/dataset.yml --model manifold_vit_x_y_32 --gpu 0 --attention_type all  /datapath
+```

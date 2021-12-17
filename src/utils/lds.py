@@ -2,9 +2,6 @@ import numpy as np
 import torch
 
 
-
-
-
 def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
     # % % HLDS = 0
     # % % lds_size = 4

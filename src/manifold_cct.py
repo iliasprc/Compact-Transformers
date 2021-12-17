@@ -53,9 +53,10 @@ class ManifoldCCT(nn.Module):
                  mlp_ratio=4.0,
                  num_classes=1000,
                  positional_embedding='learnable',
+                 attention_type='all',
                  *args, **kwargs):
         super(ManifoldCCT, self).__init__()
-
+        print(attention_type,'\n\n\n\n\n\n\n\n\n')
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
                                    n_output_channels=embedding_dim,
                                    kernel_size=kernel_size,
@@ -83,7 +84,8 @@ class ManifoldCCT(nn.Module):
             num_heads=num_heads,
             mlp_ratio=mlp_ratio,
             num_classes=num_classes,
-            positional_embedding=positional_embedding
+            positional_embedding=positional_embedding,
+            attention_type=attention_type
         )
 
     def forward(self, x):
