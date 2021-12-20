@@ -19,6 +19,7 @@ from src.manifold_vit import *
 
 m = grassmanian_vit_6_4_32()
 m = manifold_vit_tiny_12_p16()
+m = manifold_cct_nano()
 # m = img_riem_vit_6_4_32()
 # m = img_gm_vit_6_4_32()
 # m = manifold_cct_7_3x1_32()
@@ -38,9 +39,9 @@ model_parameters = filter(lambda p: p.requires_grad, m.parameters())
 params = sum([np.prod(p.size()) for p in model_parameters])
 # Count the number of FLOPs
 count_ops(m, inp)
-m = nn.LayerNorm((8, 196,196))
-model_parameters = filter(lambda p: p.requires_grad, m.parameters())
-params = sum([np.prod(p.size()) for p in model_parameters])
+# m = nn.LayerNorm((8, 196,196))
+# model_parameters = filter(lambda p: p.requires_grad, m.parameters())
+# params = sum([np.prod(p.size()) for p in model_parameters])
 print(f' Number of params :  {params}')
 #print(m)
 

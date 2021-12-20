@@ -53,7 +53,7 @@ class ManifoldCCT(nn.Module):
                  mlp_ratio=4.0,
                  num_classes=1000,
                  positional_embedding='learnable',
-                 attention_type='all',
+                 attention_type='riem',
                  *args, **kwargs):
         super(ManifoldCCT, self).__init__()
         print(attention_type,'\n\n\n\n\n\n\n\n\n')
@@ -145,10 +145,25 @@ def manifold_cct_7(arch, pretrained, progress, *args, **kwargs):
                          *args, **kwargs)
 
 
+
+
 def manifold_cct_14(arch, pretrained, progress, *args, **kwargs):
     return _manifold_cct(arch, pretrained, progress, num_layers=14, num_heads=6, mlp_ratio=3, embedding_dim=384,
                          *args, **kwargs)
 
+def manifold_cct_nano_(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=128,
+                         *args, **kwargs)
+
+def manifold_cct_tiny_(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=192,
+                         *args, **kwargs)
+
+
+
+def manifold_cct_small_(arch, pretrained, progress, *args, **kwargs):
+    return _manifold_cct(arch, pretrained, progress, num_layers=12, num_heads=8, mlp_ratio=3, embedding_dim=384,
+                         *args, **kwargs)
 
 @register_model
 def manifold_cct_2_3x2_32(pretrained=False, progress=False,
@@ -336,6 +351,29 @@ def manifold_cct_14_7x2_224(pretrained=False, progress=False,
                            num_classes=num_classes,
                            *args, **kwargs)
 
+
+
+@register_model
+def manifold_cct_nano(pretrained=False, progress=False,
+                            img_size=224, positional_embedding='learnable', num_classes=1000,
+                            *args, **kwargs):
+    return manifold_cct_nano_('manifold_cct_nano', pretrained, progress,
+                           kernel_size=7, n_conv_layers=2,
+                           img_size=img_size, positional_embedding=positional_embedding,
+                           num_classes=num_classes,
+                           *args, **kwargs)
+
+
+
+@register_model
+def manifold_cct_tiny(pretrained=False, progress=False,
+                            img_size=224, positional_embedding='learnable', num_classes=1000,
+                            *args, **kwargs):
+    return manifold_cct_tiny_('manifold_cct_tiny', pretrained, progress,
+                           kernel_size=7, n_conv_layers=2,
+                           img_size=img_size, positional_embedding=positional_embedding,
+                           num_classes=num_classes,
+                           *args, **kwargs)
 
 @register_model
 def manifold_cct_14_7x2_384(pretrained=False, progress=False,

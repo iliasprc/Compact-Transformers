@@ -128,7 +128,7 @@ class EuclideanRiemmanianAtt(nn.Module):
         self.sequence_len = sequence_length
 
         self.conv_attn = nn.Sequential(
-            nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
+           # nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
             nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
         )
 
@@ -163,7 +163,7 @@ class ManifoldEncoderLayer(Module):
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='all', sequence_length=-1, ):
+                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='riem', sequence_length=-1, ):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         if attention_type == 'riem':
@@ -205,7 +205,7 @@ class ManifoldformerClassifier(Module):
                  attention_dropout=0.1,
                  stochastic_depth=0.1,
                  positional_embedding='learnable',
-                 attention_type='all',
+                 attention_type='riem',
                  sequence_length=None):
         super().__init__()
         positional_embedding = positional_embedding if \
