@@ -15,16 +15,16 @@ NVIDIA CUDA specific speedups adopted from NVIDIA Apex examples
 
 Hacked together by / Copyright 2020 Ross Wightman (https://github.com/rwightman)
 """
+import torch.nn as nn
 import argparse
 import logging
 import os
-import time
-import torch
 import shutil
+import time
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
-import torch.nn as nn
+
 import torchvision.utils
 import yaml
 from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
@@ -33,10 +33,11 @@ from timm.models import create_model, safe_model_name, resume_checkpoint, load_c
     convert_splitbn_model, model_parameters
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler
-from timm.utils import *
+from timm.utils import AverageMeter,reduce_tensor,get_outdir,CheckpointSaver,setup_default_logging,random_seed,ModelEmaV2,\
+    ModelEma,distribute_bn,update_summary,accuracy,dispatch_clip_grad
 from timm.utils import ApexScaler, NativeScaler
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
-
+import torch
 from src import *
 
 try:
@@ -49,11 +50,11 @@ except ImportError:
     has_apex = False
 
 has_native_amp = False
-# try:
-#     if getattr(torch.cuda.amp, 'autocast') is not None:
-#         has_native_amp = True
-# except AttributeError:
-#     pass
+try:
+    if getattr(torch.cuda.amp, 'autocast') is not None:
+        has_native_amp = True
+except AttributeError:
+    pass
 
 try:
     import wandb
@@ -65,11 +66,90 @@ except ImportError:
 torch.backends.cudnn.benchmark = True
 _logger = logging.getLogger('train')
 
+def load_state_dict(checkpoint_path, use_ema=False):
+    if checkpoint_path and os.path.isfile(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        state_dict_key = 'state_dict'
+        if isinstance(checkpoint, dict):
+            if use_ema and 'state_dict_ema' in checkpoint:
+                state_dict_key = 'state_dict_ema'
+        if state_dict_key and state_dict_key in checkpoint:
+            new_state_dict = OrderedDict()
+            for k, v in checkpoint[state_dict_key].items():
+                # strip `module.` prefix
+                name = k[7:] if k.startswith('module') else k
+                new_state_dict[name] = v
+            state_dict = new_state_dict
+        else:
+            state_dict = checkpoint
+        _logger.info("Loaded {} from checkpoint '{}'".format(state_dict_key, checkpoint_path))
+        return state_dict
+    else:
+        _logger.error("No checkpoint found at '{}'".format(checkpoint_path))
+        raise FileNotFoundError()
+
+
+def load_checkpoint(model, checkpoint_path, use_ema=False, strict=False):
+    if os.path.splitext(checkpoint_path)[-1].lower() in ('.npz', '.npy'):
+        # numpy checkpoint, try to load via model specific load_pretrained fn
+        if hasattr(model, 'load_pretrained'):
+            model.load_pretrained(checkpoint_path)
+        else:
+            raise NotImplementedError('Model cannot load numpy checkpoint')
+        return
+    state_dict = load_state_dict(checkpoint_path, use_ema)
+    model.load_state_dict(state_dict, strict=strict)
+
+
+
+
+def resume_checkpoint(model, checkpoint_path, optimizer=None, loss_scaler=None, log_info=True):
+    resume_epoch = None
+    if os.path.isfile(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            if log_info:
+                _logger.info('Restoring model state from checkpoint...')
+            new_state_dict = OrderedDict()
+            for k, v in checkpoint['state_dict'].items():
+                name = k[7:] if k.startswith('module') else k
+                new_state_dict[name] = v
+            model.load_state_dict(new_state_dict, strict=False)
+
+            if optimizer is not None and 'optimizer' in checkpoint:
+                if log_info:
+                    _logger.info('Restoring optimizer state from checkpoint...')
+                optimizer.load_state_dict(checkpoint['optimizer'])
+
+            if loss_scaler is not None and loss_scaler.state_dict_key in checkpoint:
+                if log_info:
+                    _logger.info('Restoring AMP loss scaler state from checkpoint...')
+                loss_scaler.load_state_dict(checkpoint[loss_scaler.state_dict_key])
+
+            if 'epoch' in checkpoint:
+                resume_epoch = checkpoint['epoch']
+                if 'version' in checkpoint and checkpoint['version'] > 1:
+                    resume_epoch += 1  # start at the next epoch, old checkpoints incremented before save
+
+            if log_info:
+                _logger.info("Loaded checkpoint '{}' (epoch {})".format(checkpoint_path, checkpoint['epoch']))
+        else:
+            model.load_state_dict(checkpoint,strict=False)
+            if log_info:
+                _logger.info("Loaded checkpoint '{}'".format(checkpoint_path))
+        return resume_epoch
+    else:
+        _logger.error("No checkpoint found at '{}'".format(checkpoint_path))
+        raise FileNotFoundError()
+
+
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
 config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
 config_parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
                            help='YAML config file specifying default arguments')
+
+
 def arguments():
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 
@@ -85,7 +165,7 @@ def arguments():
     parser.add_argument('--model', default='resnet101', type=str, metavar='MODEL',
                         help='Name of model to train (default: "countception"')
     parser.add_argument('--attention_type', default='riem', type=str, metavar='ATT',
-                        help='Type of attention to use',choices=('self','gm','riem','all'))
+                        help='Type of attention to use', choices=('self', 'gm', 'riem', 'all'))
     parser.add_argument('--pretrained', action='store_true', default=False,
                         help='Start with pretrained version of specified network (if avail)')
     parser.add_argument('--initial-checkpoint', default='', type=str, metavar='PATH',
@@ -102,7 +182,8 @@ def arguments():
                         help='Image patch size (default: None => model default)')
     parser.add_argument('--input-size', default=None, nargs=3, type=int,
                         metavar='N N N',
-                        help='Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if empty')
+                        help='Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if '
+                             'empty')
     parser.add_argument('--crop-pct', default=None, type=float,
                         metavar='N', help='Input image center crop percent (for validation only)')
     parser.add_argument('--mean', type=float, nargs='+', default=None, metavar='MEAN',
@@ -119,7 +200,7 @@ def arguments():
     # Optimizer parameters
     parser.add_argument('--opt', default='sgd', type=str, metavar='OPTIMIZER',
                         help='Optimizer (default: "sgd"')
-    parser.add_argument('--opt-eps', default=None, type=float, metavar='EPSILON',
+    parser.add_argument('--opt-eps', default=1e-8, type=float, metavar='EPSILON',
                         help='Optimizer Epsilon (default: None, use opt default)')
     parser.add_argument('--opt-betas', default=None, type=float, nargs='+', metavar='BETA',
                         help='Optimizer Betas (default: None, use opt default)')
@@ -131,6 +212,7 @@ def arguments():
                         help='Clip gradient norm (default: None, no clipping)')
     parser.add_argument('--clip-mode', type=str, default='norm',
                         help='Gradient clipping mode. One of ("norm", "value", "agc")')
+    parser.add_argument('--gradient_steps', type=int, default=4)
 
     # Learning rate schedule parameters
     parser.add_argument('--sched', default='step', type=str, metavar='SCHEDULER',
@@ -159,7 +241,7 @@ def arguments():
                         help='manual epoch number (useful on restarts)')
     parser.add_argument('--decay-epochs', type=float, default=30, metavar='N',
                         help='epoch interval to decay LR')
-    parser.add_argument('--warmup-epochs', type=int, default=3, metavar='N',
+    parser.add_argument('--warmup-epochs', type=int, default=5, metavar='N',
                         help='epochs to warmup LR, if scheduler supports')
     parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
                         help='epochs to cooldown LR at min_lr, after cyclic schedule ends')
@@ -187,7 +269,7 @@ def arguments():
                         help='Number of augmentation splits (default: 0, valid: 0 or >=2)')
     parser.add_argument('--jsd', action='store_true', default=False,
                         help='Enable Jensen-Shannon Divergence + CE loss. Use with `--aug-splits`.')
-    parser.add_argument('--reprob', type=float, default=0., metavar='PCT',
+    parser.add_argument('--reprob', type=float, default=0.25, metavar='PCT',
                         help='Random erase prob (default: 0.)')
     parser.add_argument('--remode', type=str, default='const',
                         help='Random erase mode (default: "const")')
@@ -195,9 +277,9 @@ def arguments():
                         help='Random erase count (default: 1)')
     parser.add_argument('--resplit', action='store_true', default=False,
                         help='Do not random erase first (clean) augmentation split')
-    parser.add_argument('--mixup', type=float, default=0.0,
+    parser.add_argument('--mixup', type=float, default=0.8,
                         help='mixup alpha, mixup enabled if > 0. (default: 0.)')
-    parser.add_argument('--cutmix', type=float, default=0.0,
+    parser.add_argument('--cutmix', type=float, default=1.0,
                         help='cutmix alpha, cutmix enabled if > 0. (default: 0.)')
     parser.add_argument('--cutmix-minmax', type=float, nargs='+', default=None,
                         help='cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)')
@@ -213,11 +295,11 @@ def arguments():
                         help='Label smoothing (default: 0.1)')
     parser.add_argument('--train-interpolation', type=str, default='random',
                         help='Training interpolation (random, bilinear, bicubic default: "random")')
-    parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
+    parser.add_argument('--drop', type=float, default=0.1, metavar='PCT',
                         help='Dropout rate (default: 0.)')
     parser.add_argument('--drop-connect', type=float, default=None, metavar='PCT',
                         help='Drop connect rate, DEPRECATED, use drop-path (default: None)')
-    parser.add_argument('--drop-path', type=float, default=None, metavar='PCT',
+    parser.add_argument('--drop-path', type=float, default=0.1, metavar='PCT',
                         help='Drop path rate (default: None)')
     parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                         help='Drop block rate (default: None)')
@@ -261,7 +343,7 @@ def arguments():
                         help='use NVIDIA Apex AMP or Native AMP for mixed precision training')
     parser.add_argument('--apex-amp', action='store_true', default=False,
                         help='Use NVIDIA Apex AMP mixed precision')
-    parser.add_argument('--native-amp', action='store_true', default=False,
+    parser.add_argument('--native-amp', action='store_true', default=True,
                         help='Use Native Torch AMP mixed precision')
     parser.add_argument('--channels-last', action='store_true', default=False,
                         help='Use channels_last memory layout')
@@ -287,11 +369,12 @@ def arguments():
                         help='log training and validation metrics to wandb')
     return parser
 
-def _parse_args(config_parser,parser):
+
+def _parse_args(config_parser, parser):
     # Do we have a config file to parse?
     args_config, remaining = config_parser.parse_known_args()
-    #print(remaining)
-    #print(args_config)
+    # print(remaining)
+    # print(args_config)
     if args_config.config:
         with open(args_config.config, 'r') as f:
             cfg = yaml.safe_load(f)
@@ -300,7 +383,7 @@ def _parse_args(config_parser,parser):
     # The main arg parser parses the rest of the args, the usual
     # defaults will have been overridden if config file specified.
     args = parser.parse_args(remaining)
-    #print(args)
+    # print(args)
 
     # Cache the args as a text string to save them in the output dir later
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
@@ -311,9 +394,9 @@ def main():
     parser = arguments()
     setup_default_logging()
 
-    args, args_text = _parse_args(config_parser,parser)
+    args, args_text = _parse_args(config_parser, parser)
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args)
@@ -439,10 +522,10 @@ def main():
     # optionally resume from a checkpoint
     resume_epoch = None
     if args.resume:
-        resume_epoch = resume_checkpoint(
+        resume_checkpoint(
             model, args.resume,
-            optimizer=None if args.no_resume_opt else optimizer,
-            loss_scaler=None if args.no_resume_opt else loss_scaler,
+            optimizer=None ,
+            loss_scaler=None,
             log_info=args.local_rank == 0)
 
     # setup exponential moving average of model weights, SWA could be used here too
@@ -591,7 +674,6 @@ def main():
         with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
 
-
         shutil.copytree(f'./src', output_dir + '/src')
     _logger.info(model)
     try:
@@ -655,7 +737,7 @@ def train_one_epoch(
     losses_m = AverageMeter()
 
     model.train()
-
+    gr_steps = args.gradient_steps
     end = time.time()
     last_idx = len(loader) - 1
     num_updates = epoch * len(loader)
@@ -675,8 +757,8 @@ def train_one_epoch(
 
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
-
-        optimizer.zero_grad()
+        if batch_idx % gr_steps:
+            optimizer.zero_grad()
         if loss_scaler is not None:
             loss_scaler(
                 loss, optimizer,
@@ -689,7 +771,8 @@ def train_one_epoch(
                 dispatch_clip_grad(
                     model_parameters(model, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
-            optimizer.step()
+            if batch_idx % gr_steps:
+                optimizer.step()
 
         if model_ema is not None:
             model_ema.update(model)

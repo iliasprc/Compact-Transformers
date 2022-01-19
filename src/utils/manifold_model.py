@@ -112,15 +112,15 @@ class EuclRiemGrassAtt(nn.Module):
 
 
 class EuclideanRiemmanianAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+    def __init__(self, dim, num_heads=8, qkv_bias=False,attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
-        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.scale = head_dim ** -0.5
+        self.riem_scale = head_dim ** -0.5
 
-        self.qkv = nn.Sequential(Linear(dim, dim * 3, bias=True))
+        self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -249,7 +249,7 @@ class ManifoldformerClassifier(Module):
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
-        self.fc = Linear(embedding_dim, num_classes)
+        self.head = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
     def forward(self, x):
@@ -275,7 +275,7 @@ class ManifoldformerClassifier(Module):
         else:
             x = x[:, 0]
 
-        x = self.fc(x)
+        x = self.head(x)
         return x
 
     @staticmethod

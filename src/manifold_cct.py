@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
@@ -45,7 +46,7 @@ class ManifoldCCT(nn.Module):
                  pooling_kernel_size=3,
                  pooling_stride=2,
                  pooling_padding=1,
-                 dropout=0.,
+                 dropout=0.1,
                  attention_dropout=0.1,
                  stochastic_depth=0.1,
                  num_layers=14,
@@ -69,6 +70,8 @@ class ManifoldCCT(nn.Module):
                                    activation=nn.ReLU,
                                    n_conv_layers=n_conv_layers,
                                    conv_bias=False)
+        for p in self.tokenizer.parameters():
+            p.requires_grad=False
 
         # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
         self.classifier = ManifoldformerClassifier(
@@ -89,6 +92,7 @@ class ManifoldCCT(nn.Module):
         )
 
     def forward(self, x):
+        #with torch.no_grad():
         x = self.tokenizer(x)
 
         # print(x.shape, om.shape)
