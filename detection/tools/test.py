@@ -21,7 +21,7 @@ from mmdet.datasets import (build_dataloader, build_dataset,
                             replace_ImageToTensor)
 from mmdet.models import build_detector, build_backbone
 
-from backbone import xcit
+from  backbone import xcit,swin_transformer
 
 
 def parse_args():

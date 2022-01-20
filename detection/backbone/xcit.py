@@ -13,14 +13,11 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from timm.models.vision_transformer import _cfg, Mlp
-from timm.models.registry import register_model
-from timm.models.layers import DropPath, trunc_normal_, to_2tuple
-
 from mmcv.runner import load_checkpoint
-from mmdet.utils import get_root_logger
 from mmdet.models.builder import BACKBONES
+from mmdet.utils import get_root_logger
+from timm.models.layers import DropPath, trunc_normal_, to_2tuple
+from timm.models.vision_transformer import Mlp
 
 
 class PositionalEncodingFourier(nn.Module):
@@ -103,7 +100,7 @@ class ConvPatchEmbed(nn.Module):
                 conv3x3(embed_dim // 2, embed_dim, 2),
             )
         else:
-            raise("For convolutional projection, patch size has to be in [8, 16]")
+            raise ("For convolutional projection, patch size has to be in [8, 16]")
 
     def forward(self, x, padding_size=None):
         B, C, H, W = x.shape
@@ -166,9 +163,9 @@ class ClassAttention(nn.Module):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
         qkv = qkv.permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
-        qc = q[:, :, 0:1]   # CLS token
+        qc = q[:, :, 0:1]  # CLS token
         attn_cls = (qc * k).sum(dim=-1) * self.scale
         attn_cls = attn_cls.softmax(dim=-1)
         attn_cls = self.attn_drop(attn_cls)
@@ -200,7 +197,7 @@ class ClassAttentionBlock(nn.Module):
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer,
                        drop=drop)
 
-        if eta is not None:     # LayerScale Initialization (no layerscale when None)
+        if eta is not None:  # LayerScale Initialization (no layerscale when None)
             self.gamma1 = nn.Parameter(eta * torch.ones(dim), requires_grad=True)
             self.gamma2 = nn.Parameter(eta * torch.ones(dim), requires_grad=True)
         else:
@@ -244,7 +241,7 @@ class XCA(nn.Module):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
         qkv = qkv.permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
         q = q.transpose(-2, -1)
         k = k.transpose(-2, -1)
