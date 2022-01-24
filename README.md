@@ -136,7 +136,80 @@ convolutional layers.
 
 ## CIFAR-10 and CIFAR-100
 
- 
+ Download Cifar-10 and CIFAR-100 datasets using 
+
+```python
+$ pip install cifar2png
+```
+
+### CIFAR-10
+
+`$ cifar2png cifar10 path/to/cifar10png`
+
+
+### CIFAR-10 with naming option
+
+`$ cifar2png cifar10 path/to/cifar10png --name-with-batch-index`
+
+
+### CIFAR-100
+
+`$ cifar2png cifar100 path/to/cifar100png`
+
+
+### CIFAR-100 with superclass
+
+`$ cifar2png cifar100superclass path/to/cifar100png`
+
+
+## Structure of output directory
+
+### CIFAR-10 and CIFAR-100
+
+PNG images of CIFAR-10 are saved in 10 subdirectories of each label under the `test` and `train` directories as below.  
+(CIFAR-100 are saved in the same way with 100 subdirectories)
+
+```bash
+$ tree -d path/to/cifar10png
+path/to/cifar10png
+├── test
+│   ├── airplane
+│   ├── automobile
+│   ├── bird
+│   ├── cat
+│   ├── deer
+│   ├── dog
+│   ├── frog
+│   ├── horse
+│   ├── ship
+│   └── truck
+└── train
+    ├── airplane
+    ├── automobile
+    ├── bird
+    ├── cat
+    ├── deer
+    ├── dog
+    ├── frog
+    ├── horse
+    ├── ship
+    └── truck
+```
+
+```bash
+$ tree path/to/cifar10png/test/airplane
+path/to/cifar10png/test/airplane
+├── 0001.png
+├── 0002.png
+├── 0003.png
+(..snip..)
+├── 0998.png
+├── 0999.png
+└── 1000.png
+```
+
+
+
 
 ## Flowers-102
 

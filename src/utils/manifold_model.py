@@ -112,13 +112,13 @@ class EuclRiemGrassAtt(nn.Module):
 
 
 class EuclideanRiemmanianAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, qkv_bias=False,attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+    def __init__(self, dim, num_heads=8, qkv_bias=True,attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,ln=True):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = head_dim ** -0.5
-        self.riem_scale = head_dim ** -0.5
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
 
         self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
 
@@ -126,12 +126,16 @@ class EuclideanRiemmanianAtt(nn.Module):
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
+        if ln:
+            self.conv_attn = nn.Sequential(
+                nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
+        else:
+            self.conv_attn = nn.Sequential(
 
-        self.conv_attn = nn.Sequential(
-           # nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
-            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
-        )
-
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
     def forward(self, x):
         B, N, C = x.shape
 

@@ -46,9 +46,9 @@ class ManifoldCCT(nn.Module):
                  pooling_kernel_size=3,
                  pooling_stride=2,
                  pooling_padding=1,
-                 dropout=0.1,
-                 attention_dropout=0.1,
-                 stochastic_depth=0.1,
+                 dropout=0.0,
+                 attention_dropout=0.0,
+                 stochastic_depth=0.0,
                  num_layers=14,
                  num_heads=6,
                  mlp_ratio=4.0,
@@ -70,8 +70,8 @@ class ManifoldCCT(nn.Module):
                                    activation=nn.ReLU,
                                    n_conv_layers=n_conv_layers,
                                    conv_bias=False)
-        for p in self.tokenizer.parameters():
-            p.requires_grad=False
+        # for p in self.tokenizer.parameters():
+        #     p.requires_grad=False
 
         # self.project = nn.Sequential(nn.Linear(126, embedding_dim) )
         self.classifier = ManifoldformerClassifier(

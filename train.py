@@ -66,82 +66,6 @@ except ImportError:
 torch.backends.cudnn.benchmark = True
 _logger = logging.getLogger('train')
 
-def load_state_dict(checkpoint_path, use_ema=False):
-    if checkpoint_path and os.path.isfile(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        state_dict_key = 'state_dict'
-        if isinstance(checkpoint, dict):
-            if use_ema and 'state_dict_ema' in checkpoint:
-                state_dict_key = 'state_dict_ema'
-        if state_dict_key and state_dict_key in checkpoint:
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint[state_dict_key].items():
-                # strip `module.` prefix
-                name = k[7:] if k.startswith('module') else k
-                new_state_dict[name] = v
-            state_dict = new_state_dict
-        else:
-            state_dict = checkpoint
-        _logger.info("Loaded {} from checkpoint '{}'".format(state_dict_key, checkpoint_path))
-        return state_dict
-    else:
-        _logger.error("No checkpoint found at '{}'".format(checkpoint_path))
-        raise FileNotFoundError()
-
-
-def load_checkpoint(model, checkpoint_path, use_ema=False, strict=False):
-    if os.path.splitext(checkpoint_path)[-1].lower() in ('.npz', '.npy'):
-        # numpy checkpoint, try to load via model specific load_pretrained fn
-        if hasattr(model, 'load_pretrained'):
-            model.load_pretrained(checkpoint_path)
-        else:
-            raise NotImplementedError('Model cannot load numpy checkpoint')
-        return
-    state_dict = load_state_dict(checkpoint_path, use_ema)
-    model.load_state_dict(state_dict, strict=strict)
-
-
-
-
-def resume_checkpoint(model, checkpoint_path, optimizer=None, loss_scaler=None, log_info=True):
-    resume_epoch = None
-    if os.path.isfile(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            if log_info:
-                _logger.info('Restoring model state from checkpoint...')
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint['state_dict'].items():
-                name = k[7:] if k.startswith('module') else k
-                new_state_dict[name] = v
-            model.load_state_dict(new_state_dict, strict=False)
-
-            if optimizer is not None and 'optimizer' in checkpoint:
-                if log_info:
-                    _logger.info('Restoring optimizer state from checkpoint...')
-                optimizer.load_state_dict(checkpoint['optimizer'])
-
-            if loss_scaler is not None and loss_scaler.state_dict_key in checkpoint:
-                if log_info:
-                    _logger.info('Restoring AMP loss scaler state from checkpoint...')
-                loss_scaler.load_state_dict(checkpoint[loss_scaler.state_dict_key])
-
-            if 'epoch' in checkpoint:
-                resume_epoch = checkpoint['epoch']
-                if 'version' in checkpoint and checkpoint['version'] > 1:
-                    resume_epoch += 1  # start at the next epoch, old checkpoints incremented before save
-
-            if log_info:
-                _logger.info("Loaded checkpoint '{}' (epoch {})".format(checkpoint_path, checkpoint['epoch']))
-        else:
-            model.load_state_dict(checkpoint,strict=False)
-            if log_info:
-                _logger.info("Loaded checkpoint '{}'".format(checkpoint_path))
-        return resume_epoch
-    else:
-        _logger.error("No checkpoint found at '{}'".format(checkpoint_path))
-        raise FileNotFoundError()
-
 
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
@@ -212,7 +136,7 @@ def arguments():
                         help='Clip gradient norm (default: None, no clipping)')
     parser.add_argument('--clip-mode', type=str, default='norm',
                         help='Gradient clipping mode. One of ("norm", "value", "agc")')
-    parser.add_argument('--gradient_steps', type=int, default=4)
+    parser.add_argument('--gradient_steps', type=int, default=1)
 
     # Learning rate schedule parameters
     parser.add_argument('--sched', default='step', type=str, metavar='SCHEDULER',
@@ -269,7 +193,7 @@ def arguments():
                         help='Number of augmentation splits (default: 0, valid: 0 or >=2)')
     parser.add_argument('--jsd', action='store_true', default=False,
                         help='Enable Jensen-Shannon Divergence + CE loss. Use with `--aug-splits`.')
-    parser.add_argument('--reprob', type=float, default=0.25, metavar='PCT',
+    parser.add_argument('--reprob', type=float, default=0.0, metavar='PCT',
                         help='Random erase prob (default: 0.)')
     parser.add_argument('--remode', type=str, default='const',
                         help='Random erase mode (default: "const")')
@@ -277,9 +201,9 @@ def arguments():
                         help='Random erase count (default: 1)')
     parser.add_argument('--resplit', action='store_true', default=False,
                         help='Do not random erase first (clean) augmentation split')
-    parser.add_argument('--mixup', type=float, default=0.8,
+    parser.add_argument('--mixup', type=float, default=0.0,
                         help='mixup alpha, mixup enabled if > 0. (default: 0.)')
-    parser.add_argument('--cutmix', type=float, default=1.0,
+    parser.add_argument('--cutmix', type=float, default=0.0,
                         help='cutmix alpha, cutmix enabled if > 0. (default: 0.)')
     parser.add_argument('--cutmix-minmax', type=float, nargs='+', default=None,
                         help='cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)')
@@ -295,11 +219,11 @@ def arguments():
                         help='Label smoothing (default: 0.1)')
     parser.add_argument('--train-interpolation', type=str, default='random',
                         help='Training interpolation (random, bilinear, bicubic default: "random")')
-    parser.add_argument('--drop', type=float, default=0.1, metavar='PCT',
+    parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
                         help='Dropout rate (default: 0.)')
     parser.add_argument('--drop-connect', type=float, default=None, metavar='PCT',
                         help='Drop connect rate, DEPRECATED, use drop-path (default: None)')
-    parser.add_argument('--drop-path', type=float, default=0.1, metavar='PCT',
+    parser.add_argument('--drop-path', type=float, default=None, metavar='PCT',
                         help='Drop path rate (default: None)')
     parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                         help='Drop block rate (default: None)')
@@ -343,7 +267,7 @@ def arguments():
                         help='use NVIDIA Apex AMP or Native AMP for mixed precision training')
     parser.add_argument('--apex-amp', action='store_true', default=False,
                         help='Use NVIDIA Apex AMP mixed precision')
-    parser.add_argument('--native-amp', action='store_true', default=True,
+    parser.add_argument('--native-amp', action='store_true', default=False,
                         help='Use Native Torch AMP mixed precision')
     parser.add_argument('--channels-last', action='store_true', default=False,
                         help='Use channels_last memory layout')
@@ -565,12 +489,18 @@ def main():
         _logger.info('Scheduled epochs: {}'.format(num_epochs))
 
     # create the train and eval datasets
-    dataset_train = create_dataset(
-        args.dataset,
-        root=args.data_dir, split=args.train_split, is_training=True,
-        batch_size=args.batch_size, repeats=args.epoch_repeats)
-    dataset_eval = create_dataset(
-        args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
+    if args.dataset == 'cifar100':
+        _logger.info('USE TORCHVISION')
+        from torchvision.datasets import CIFAR100
+        dataset_train = CIFAR100(root='./data', train=True, download=True)
+        dataset_eval = CIFAR100(root='./data', train=False, download=True)
+    else:
+        dataset_train = create_dataset(
+            args.dataset,
+            root=args.data_dir, split=args.train_split, is_training=True,
+            batch_size=args.batch_size, repeats=args.epoch_repeats)
+        dataset_eval = create_dataset(
+            args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
 
     # setup mixup / cutmix
     collate_fn = None
@@ -720,7 +650,6 @@ def main():
     if best_metric is not None:
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
 
-
 def train_one_epoch(
         epoch, model, loader, optimizer, loss_fn, args,
         lr_scheduler=None, saver=None, output_dir=None, amp_autocast=suppress,
@@ -737,7 +666,7 @@ def train_one_epoch(
     losses_m = AverageMeter()
 
     model.train()
-    gr_steps = args.gradient_steps
+
     end = time.time()
     last_idx = len(loader) - 1
     num_updates = epoch * len(loader)
@@ -757,8 +686,8 @@ def train_one_epoch(
 
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
-        if batch_idx % gr_steps:
-            optimizer.zero_grad()
+
+        optimizer.zero_grad()
         if loss_scaler is not None:
             loss_scaler(
                 loss, optimizer,
@@ -771,8 +700,7 @@ def train_one_epoch(
                 dispatch_clip_grad(
                     model_parameters(model, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
-            if batch_idx % gr_steps:
-                optimizer.step()
+            optimizer.step()
 
         if model_ema is not None:
             model_ema.update(model)
@@ -891,7 +819,6 @@ def validate(model, loader, loss_fn, args, amp_autocast=suppress, log_suffix='')
     metrics = OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
 
     return metrics
-
 
 if __name__ == '__main__':
     main()
