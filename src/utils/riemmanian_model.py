@@ -81,11 +81,11 @@ class RiemmanianAttention(nn.Module):
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.sequence_length = sequence_length
         self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
-        if self.sequence_length != -1:
-            self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
+        # if self.sequence_length != -1:
+        #     self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -96,9 +96,9 @@ class RiemmanianAttention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        dots = log_dist(q, k, use_covariance=True, use_log=False)
-        if self.sequence_length != -1:
-            dots = self.norm(dots)
+        dots = log_dist(q, k, use_covariance=True, use_log=False)*self.scale
+        # if self.sequence_length != -1:
+        #     dots = self.norm(dots)
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
         out = out.permute(0, 2, 1, 3).reshape(B, N, C)
