@@ -9,7 +9,8 @@ from .stochastic_depth import DropPath
 
 
 class RiemGrassAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
+                 ln_attention=False):
         super().__init__()
 
         self.num_heads = num_heads
@@ -24,10 +25,16 @@ class RiemGrassAtt(nn.Module):
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
 
-        self.conv_attn = nn.Sequential(
-            nn.BatchNorm2d(2 * num_heads),
-            nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
-        )
+        if ln_attention:
+            self.conv_attn = nn.Sequential(
+                nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
+        else:
+            self.conv_attn = nn.Sequential(
+
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
 
     def forward(self, x):
         B, N, C = x.shape
@@ -59,7 +66,8 @@ class RiemGrassAtt(nn.Module):
 
 
 class EuclRiemGrassAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
+                 ln_attention=False):
         super().__init__()
 
         self.num_heads = num_heads
@@ -74,11 +82,16 @@ class EuclRiemGrassAtt(nn.Module):
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
         self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
-        self.conv_attn = nn.Sequential(
-            nn.BatchNorm2d(3 * num_heads),
-            # nn.LayerNorm(normalized_shape=(3*num_heads,sequence_length,sequence_length)),
-            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
-        )
+        if ln_attention:
+            self.conv_attn = nn.Sequential(
+                nn.LayerNorm((3 * num_heads, sequence_length, sequence_length)),
+                nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
+        else:
+            self.conv_attn = nn.Sequential(
+
+                nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
 
     def forward(self, x):
         B, N, C = x.shape
@@ -112,7 +125,8 @@ class EuclRiemGrassAtt(nn.Module):
 
 
 class EuclideanRiemmanianAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, qkv_bias=True,attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,ln=True):
+    def __init__(self, dim, num_heads=8, qkv_bias=True, attention_dropout=0.1, projection_dropout=0.1,
+                 sequence_length=-1, ln_attention=False):
         super().__init__()
 
         self.num_heads = num_heads
@@ -126,7 +140,7 @@ class EuclideanRiemmanianAtt(nn.Module):
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
-        if ln:
+        if ln_attention:
             self.conv_attn = nn.Sequential(
                 nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
                 nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
@@ -136,6 +150,7 @@ class EuclideanRiemmanianAtt(nn.Module):
 
                 nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
             )
+
     def forward(self, x):
         B, N, C = x.shape
 
@@ -167,18 +182,22 @@ class ManifoldEncoderLayer(Module):
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='riem', sequence_length=-1, ):
+                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='riem', sequence_length=-1,
+                 ln_attention=False):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         if attention_type == 'riem':
             self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
                                                     attention_dropout=attention_dropout, projection_dropout=dropout,
-                                                    sequence_length=sequence_length)
+                                                    sequence_length=sequence_length, ln_attention=ln_attention)
         elif attention_type == 'all':
             self.self_attn = EuclRiemGrassAtt(dim=d_model, num_heads=nhead,
                                               attention_dropout=attention_dropout, projection_dropout=dropout,
-                                              sequence_length=sequence_length)
-
+                                              sequence_length=sequence_length, ln_attention=ln_attention)
+        elif attention_type == 'grassmanian':
+            self.self_attn = RiemGrassAtt(dim=d_model, num_heads=nhead,
+                                          attention_dropout=attention_dropout, projection_dropout=dropout,
+                                          sequence_length=sequence_length, ln_attention=ln_attention)
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
         self.norm1 = LayerNorm(d_model)
@@ -210,7 +229,8 @@ class ManifoldformerClassifier(Module):
                  stochastic_depth=0.1,
                  positional_embedding='learnable',
                  attention_type='riem',
-                 sequence_length=None):
+                 sequence_length=None,
+                 ln_attention=False):
         super().__init__()
         positional_embedding = positional_embedding if \
             positional_embedding in ['sine', 'learnable', 'none'] else 'sine'
@@ -249,7 +269,7 @@ class ManifoldformerClassifier(Module):
                                  dim_feedforward=dim_feedforward, dropout=dropout,
                                  attention_dropout=attention_dropout, drop_path_rate=dpr[i],
                                  attention_type=attention_type,
-                                 sequence_length=sequence_length)
+                                 sequence_length=sequence_length, ln_attention=ln_attention)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 

@@ -15,16 +15,15 @@ NVIDIA CUDA specific speedups adopted from NVIDIA Apex examples
 
 Hacked together by / Copyright 2020 Ross Wightman (https://github.com/rwightman)
 """
-import torch.nn as nn
 import argparse
-import logging
 import os
 import shutil
 import time
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
-
+import torch
+import logging
 import torchvision.utils
 import yaml
 from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
@@ -33,11 +32,12 @@ from timm.models import create_model, safe_model_name, resume_checkpoint, load_c
     convert_splitbn_model, model_parameters
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler
-from timm.utils import AverageMeter,reduce_tensor,get_outdir,CheckpointSaver,setup_default_logging,random_seed,ModelEmaV2,\
-    ModelEma,distribute_bn,update_summary,accuracy,dispatch_clip_grad
 from timm.utils import ApexScaler, NativeScaler
+from timm.utils import AverageMeter, reduce_tensor, get_outdir, CheckpointSaver, setup_default_logging, random_seed, \
+    ModelEmaV2, \
+    distribute_bn, update_summary, accuracy, dispatch_clip_grad
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
-import torch
+
 from src import *
 
 try:
@@ -65,7 +65,6 @@ except ImportError:
 
 torch.backends.cudnn.benchmark = True
 _logger = logging.getLogger('train')
-
 
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
@@ -448,7 +447,7 @@ def main():
     if args.resume:
         resume_checkpoint(
             model, args.resume,
-            optimizer=None ,
+            optimizer=None,
             loss_scaler=None,
             log_info=args.local_rank == 0)
 
@@ -489,18 +488,23 @@ def main():
         _logger.info('Scheduled epochs: {}'.format(num_epochs))
 
     # create the train and eval datasets
-    if args.dataset == 'cifar100':
-        _logger.info('USE TORCHVISION')
-        from torchvision.datasets import CIFAR100
-        dataset_train = CIFAR100(root='./data', train=True, download=True)
-        dataset_eval = CIFAR100(root='./data', train=False, download=True)
-    else:
-        dataset_train = create_dataset(
-            args.dataset,
-            root=args.data_dir, split=args.train_split, is_training=True,
-            batch_size=args.batch_size, repeats=args.epoch_repeats)
-        dataset_eval = create_dataset(
-            args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
+    # if args.dataset == 'cifar100':
+    #     _logger.info('USE TORCHVISION')
+    #     from torchvision.datasets import CIFAR100
+    #     dataset_train = CIFAR100(root='./data', train=True, download=True)
+    #     dataset_eval = CIFAR100(root='./data', train=False, download=True)
+    # elif args.dataset == 'cifar10':
+    #     _logger.info('USE TORCHVISION')
+    #     from torchvision.datasets import CIFAR10
+    #     dataset_train = CIFAR10(root='./data', train=True, download=True)
+    #     dataset_eval = CIFAR10(root='./data', train=False, download=True)
+    # else:
+    dataset_train = create_dataset(
+        args.dataset,
+        root=args.data_dir, split=args.train_split, is_training=True,
+        batch_size=args.batch_size, repeats=args.epoch_repeats)
+    dataset_eval = create_dataset(
+        args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
 
     # setup mixup / cutmix
     collate_fn = None
@@ -649,6 +653,7 @@ def main():
         pass
     if best_metric is not None:
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
+
 
 def train_one_epoch(
         epoch, model, loader, optimizer, loss_fn, args,
@@ -819,6 +824,7 @@ def validate(model, loader, loss_fn, args, amp_autocast=suppress, log_suffix='')
     metrics = OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
 
     return metrics
+
 
 if __name__ == '__main__':
     main()

@@ -3,56 +3,180 @@
 	
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/escaping-the-big-data-paradigm-with-compact/image-classification-on-flowers-102)](https://paperswithcode.com/sota/image-classification-on-flowers-102?p=escaping-the-big-data-paradigm-with-compact)
 
-Preprint Link: [Escaping the Big Data Paradigm with Compact Transformers
-](https://arxiv.org/abs/2104.05704)
 
-By [Ali Hassani<sup>[1]</sup><span>&#42;</span>](https://alihassanijr.com/),
-[Steven Walton<sup>[1]</sup><span>&#42;</span>](https://stevenwalton.github.io/),
-[Nikhil Shah<sup>[1]</sup>](https://itsshnik.github.io/),
-[Abulikemu Abuduweili<sup>[1]</sup>](https://github.com/Walleclipse),
-[Jiachen Li<sup>[1,2]</sup>](https://chrisjuniorli.github.io/), 
-and
-[Humphrey Shi<sup>[1,2,3]</sup>](https://www.humphreyshi.com/)
-
-
-<small><span>&#42;</span>Ali Hassani and Steven Walton contributed equal work</small>
-
-In association with SHI Lab @ University of Oregon<sup>[1]</sup> and
-UIUC<sup>[2]</sup>, and Picsart AI Research (PAIR)<sup>[3]</sup>
-
- 
-
-## Other implementations & resources
-**[PyTorch blog]**: check out our [official blog post with PyTorch](https://medium.com/pytorch/training-compact-transformers-from-scratch-in-30-minutes-with-pytorch-ff5c21668ed5) to learn more about our work and vision transformers in general.
-
-**[Keras]**: check out [Compact Convolutional Transformers on keras.io](https://keras.io/examples/vision/cct/) by [Sayak Paul](https://github.com/sayakpaul).
-
-**[vit-pytorch]**: CCT is also available through [Phil Wang](https://github.com/lucidrains)'s [vit-pytorch](https://github.com/lucidrains/vit-pytorch), simply use ```pip install vit-pytorch```
-
-
-# Abstract
- 
-#### ViT-Lite: Lightweight ViT 
-Different from [ViT](https://arxiv.org/abs/2010.11929) we show that <i>an image 
-is <b>not always</b> worth 16x16 words</i> and the image patch size matters.
-Transformers are not in fact ''data-hungry,'' as the authors proposed, and
-smaller patching can be used to train efficiently on smaller datasets.
-
-#### CVT: Compact Vision Transformers
-Compact Vision Transformers better utilize information with Sequence Pooling post 
-encoder, eliminating the need for the class token while achieving better
-accuracy.
-
-#### CCT: Compact Convolutional Transformers
-Compact Convolutional Transformers not only use the sequence pooling but also
-replace the patch embedding with a convolutional embedding, allowing for better
-inductive bias and making positional embeddings optional. CCT achieves better
-accuracy than ViT-Lite and CVT and increases the flexibility of the input
-parameters.
-
- 
 
 # How to run
+
+## Arguments
+
+```commandline
+
+    positional arguments:
+      DIR                   path to dataset
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      --dataset NAME, -d NAME
+                            dataset type (default: ImageFolder/ImageTar if empty)
+      --train-split NAME    dataset train split (default: train)
+      --val-split NAME      dataset validation split (default: validation)
+      --model MODEL         Name of model to train (default: "countception"
+      --attention_type ATT  Type of attention to use
+      --pretrained          Start with pretrained version of specified network (if
+                            avail)
+      --initial-checkpoint PATH
+                            Initialize model from this checkpoint (default: none)
+      --resume PATH         Resume full model and optimizer state from checkpoint
+                            (default: none)
+      --no-resume-opt       prevent resume of optimizer state when resuming model
+      --num-classes N       number of label classes (Model default if None)
+      --gp POOL             Global pool type, one of (fast, avg, max, avgmax,
+                            avgmaxc). Model default if None.
+      --img-size N          Image patch size (default: None => model default)
+      --input-size N N N N N N N N N
+                            Input all image dimensions (d h w, e.g. --input-size 3
+                            224 224), uses model default if empty
+      --crop-pct N          Input image center crop percent (for validation only)
+      --mean MEAN [MEAN ...]
+                            Override mean pixel value of dataset
+      --std STD [STD ...]   Override std deviation of of dataset
+      --interpolation NAME  Image resize interpolation type (overrides model)
+      -b N, --batch-size N  input batch size for training (default: 32)
+      -vb N, --validation-batch-size-multiplier N
+                            ratio of validation batch size to training batch size
+                            (default: 1)
+      --opt OPTIMIZER       Optimizer (default: "sgd"
+      --opt-eps EPSILON     Optimizer Epsilon (default: None, use opt default)
+      --opt-betas BETA [BETA ...]
+                            Optimizer Betas (default: None, use opt default)
+      --momentum M          Optimizer momentum (default: 0.9)
+      --weight-decay WEIGHT_DECAY
+                            weight decay (default: 0.0001)
+      --clip-grad NORM      Clip gradient norm (default: None, no clipping)
+      --clip-mode CLIP_MODE
+                            Gradient clipping mode. One of ("norm", "value",
+                            "agc")
+      --gradient_steps GRADIENT_STEPS
+      --sched SCHEDULER     LR scheduler (default: "step"
+      --lr LR               learning rate (default: 0.01)
+      --lr-noise pct, pct [pct, pct ...]
+                            learning rate noise on/off epoch percentages
+      --lr-noise-pct PERCENT
+                            learning rate noise limit percent (default: 0.67)
+      --lr-noise-std STDDEV
+                            learning rate noise std-dev (default: 1.0)
+      --lr-cycle-mul MULT   learning rate cycle len multiplier (default: 1.0)
+      --lr-cycle-limit N    learning rate cycle limit
+      --warmup-lr LR        warmup learning rate (default: 0.0001)
+      --min-lr LR           lower lr bound for cyclic schedulers that hit 0 (1e-5)
+      --epochs N            number of epochs to train (default: 2)
+      --epoch-repeats N     epoch repeat multiplier (number of times to repeat
+                            dataset epoch per train epoch).
+      --start-epoch N       manual epoch number (useful on restarts)
+      --decay-epochs N      epoch interval to decay LR
+      --warmup-epochs N     epochs to warmup LR, if scheduler supports
+      --cooldown-epochs N   epochs to cooldown LR at min_lr, after cyclic schedule
+                            ends
+      --patience-epochs N   patience epochs for Plateau LR scheduler (default: 10
+      --decay-rate RATE, --dr RATE
+                            LR decay rate (default: 0.1)
+      --no-aug              Disable all training augmentation, override other
+                            train aug args
+      --scale PCT [PCT ...]
+                            Random resize scale (default: 0.08 1.0)
+      --ratio RATIO [RATIO ...]
+                            Random resize aspect ratio (default: 0.75 1.33)
+      --hflip HFLIP         Horizontal flip training aug probability
+      --vflip VFLIP         Vertical flip training aug probability
+      --color-jitter PCT    Color jitter factor (default: 0.4)
+      --aa NAME             Use AutoAugment policy. "v0" or "original". (default:
+                            None)
+      --aug-splits AUG_SPLITS
+                            Number of augmentation splits (default: 0, valid: 0 or
+                            >=2)
+      --jsd                 Enable Jensen-Shannon Divergence + CE loss. Use with
+                            `--aug-splits`.
+      --reprob PCT          Random erase prob (default: 0.)
+      --remode REMODE       Random erase mode (default: "const")
+      --recount RECOUNT     Random erase count (default: 1)
+      --resplit             Do not random erase first (clean) augmentation split
+      --mixup MIXUP         mixup alpha, mixup enabled if > 0. (default: 0.)
+      --cutmix CUTMIX       cutmix alpha, cutmix enabled if > 0. (default: 0.)
+      --cutmix-minmax CUTMIX_MINMAX [CUTMIX_MINMAX ...]
+                            cutmix min/max ratio, overrides alpha and enables
+                            cutmix if set (default: None)
+      --mixup-prob MIXUP_PROB
+                            Probability of performing mixup or cutmix when
+                            either/both is enabled
+      --mixup-switch-prob MIXUP_SWITCH_PROB
+                            Probability of switching to cutmix when both mixup and
+                            cutmix enabled
+      --mixup-mode MIXUP_MODE
+                            How to apply mixup/cutmix params. Per "batch", "pair",
+                            or "elem"
+      --mixup-off-epoch N   Turn off mixup after this epoch, disabled if 0
+                            (default: 0)
+      --smoothing SMOOTHING
+                            Label smoothing (default: 0.1)
+      --train-interpolation TRAIN_INTERPOLATION
+                            Training interpolation (random, bilinear, bicubic
+                            default: "random")
+      --drop PCT            Dropout rate (default: 0.)
+      --drop-connect PCT    Drop connect rate, DEPRECATED, use drop-path (default:
+                            None)
+      --drop-path PCT       Drop path rate (default: None)
+      --drop-block PCT      Drop block rate (default: None)
+      --bn-tf               Use Tensorflow BatchNorm defaults for models that
+                            support it (default: False)
+      --bn-momentum BN_MOMENTUM
+                            BatchNorm momentum override (if not None)
+      --bn-eps BN_EPS       BatchNorm epsilon override (if not None)
+      --sync-bn             Enable NVIDIA Apex or Torch synchronized BatchNorm.
+      --dist-bn DIST_BN     Distribute BatchNorm stats between nodes after each
+                            epoch ("broadcast", "reduce", or "")
+      --split-bn            Enable separate BN layers per augmentation split.
+      --model-ema           Enable tracking moving average of model weights
+      --model-ema-force-cpu
+                            Force ema to be tracked on CPU, rank=0 node only.
+                            Disables EMA validation.
+      --model-ema-decay MODEL_EMA_DECAY
+                            decay factor for model weights moving average
+                            (default: 0.9998)
+      --seed S              random seed (default: 42)
+      --log-interval N      how many batches to wait before logging training
+                            status
+      --recovery-interval N
+                            how many batches to wait before writing recovery
+                            checkpoint
+      --checkpoint-hist N   number of checkpoints to keep (default: 10)
+      -j N, --workers N     how many training processes to use (default: 1)
+      --save-images         save images of input bathes every log interval for
+                            debugging
+      --amp                 use NVIDIA Apex AMP or Native AMP for mixed precision
+                            training
+      --apex-amp            Use NVIDIA Apex AMP mixed precision
+      --native-amp          Use Native Torch AMP mixed precision
+      --channels-last       Use channels_last memory layout
+      --pin-mem             Pin CPU memory in DataLoader for more efficient
+                            (sometimes) transfer to GPU.
+      --no-prefetcher       disable fast prefetcher
+      --output PATH         path to output folder (default: none, current dir)
+      --experiment NAME     name of train experiment, name of sub-folder for
+                            output
+      --eval-metric EVAL_METRIC
+                            Best metric (default: "top1"
+      --tta N               Test/inference time augmentation (oversampling)
+                            factor. 0=None (default: 0)
+      --local_rank LOCAL_RANK
+      --gpu GPU
+      --use-multi-epochs-loader
+                            use the multi-epochs-loader to save time at the
+                            beginning of every epoch
+      --torchscript         convert model torchscript for inference
+      --log-wandb           log training and validation metrics to wandb
+
+
+```
 
 ## Install locally
 
@@ -80,7 +204,6 @@ trained using our old training script, and we're working on training them again 
 for consistency.
 
 
-python train.py -c configs/datasets/cifar100.yml --model manifold_cvt_6_4_32  --gpu 1 --log-wandb  ./data/cifar100
 You could even create your own models with different image resolutions, positional embeddings, and number of classes:
 ```python3
 from src import cct_14_7x2_384, cct_7_7x2_224_sine
@@ -223,10 +346,19 @@ path/to/cifar10png/test/airplane
 ## Acknowledgments
 
 Thanks to   [SHI Lab](https://github.com/SHI-Labs) for the awesome code for the transformers,
-which I have used for my research implementations.
+which I have used for my research implementations. 
+
+By [Ali Hassani<sup>[1]</sup><span>&#42;</span>](https://alihassanijr.com/),
+[Steven Walton<sup>[1]</sup><span>&#42;</span>](https://stevenwalton.github.io/),
+[Nikhil Shah<sup>[1]</sup>](https://itsshnik.github.io/),
+[Abulikemu Abuduweili<sup>[1]</sup>](https://github.com/Walleclipse),
+[Jiachen Li<sup>[1,2]</sup>](https://chrisjuniorli.github.io/), 
+and
+[Humphrey Shi<sup>[1,2,3]</sup>](https://www.humphreyshi.com/)
+
+
 # Citation
 
-Code obtained from:
 ```bibtex
 @article{hassani2021escaping,
 	title        = {Escaping the Big Data Paradigm with Compact Transformers},

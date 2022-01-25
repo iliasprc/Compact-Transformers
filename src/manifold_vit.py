@@ -48,6 +48,7 @@ class ManifoldViT(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  attention_type='all',
+                 ln_attention=False,
                  *args, **kwargs):
         super(ManifoldViT, self).__init__()
 
@@ -75,7 +76,8 @@ class ManifoldViT(nn.Module):
             mlp_ratio=mlp_ratio,
             num_classes=num_classes,
             positional_embedding=positional_embedding,
-            attention_type=attention_type
+            attention_type=attention_type,
+            ln_attention=ln_attention
         )
 
     def forward(self, x):
@@ -128,8 +130,6 @@ def manifold_vit_6(*args, **kwargs):
 def manifold_vit_7(*args, **kwargs):
     return _manifold_vit(num_layers=7, num_heads=4, mlp_ratio=2, embedding_dim=256,
                          *args, **kwargs)
-
-
 
 
 @register_model
@@ -222,34 +222,35 @@ def manifold_vit_7_4_32_sine(pretrained=False, progress=False,
 
 @register_model
 def manifold_vit_nano_12_p16(pretrained=False, progress=False,
-                        img_size=224, positional_embedding='learnable', num_classes=10,
-                        *args, **kwargs):
+                             img_size=224, positional_embedding='learnable', num_classes=10,
+                             *args, **kwargs):
     return _manifold_vit('manifold_vit_nano_12_p16', pretrained, progress,
-                          kernel_size=16,
-                          img_size=img_size, positional_embedding=positional_embedding,
-                          num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=128,
-                          num_classes=num_classes,
-                          *args, **kwargs)
+                         kernel_size=16,
+                         img_size=img_size, positional_embedding=positional_embedding,
+                         num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=128,
+                         num_classes=num_classes,
+                         *args, **kwargs)
+
 
 @register_model
 def manifold_vit_tiny_12_p16(pretrained=False, progress=False,
-                        img_size=224, positional_embedding='learnable', num_classes=10,
-                        *args, **kwargs):
+                             img_size=224, positional_embedding='learnable', num_classes=10,
+                             *args, **kwargs):
     return _manifold_vit('manifold_vit_tiny_12_p16', pretrained, progress,
-                          kernel_size=16,
-                          img_size=img_size, positional_embedding=positional_embedding,
-                          num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=192,
-                          num_classes=num_classes,
-                          *args, **kwargs)
+                         kernel_size=16,
+                         img_size=img_size, positional_embedding=positional_embedding,
+                         num_layers=12, num_heads=4, mlp_ratio=4, embedding_dim=192,
+                         num_classes=num_classes,
+                         *args, **kwargs)
 
 
 @register_model
 def manifold_vit_small_12_p16(pretrained=False, progress=False,
-                        img_size=224, positional_embedding='learnable', num_classes=10,
-                        *args, **kwargs):
+                              img_size=224, positional_embedding='learnable', num_classes=10,
+                              *args, **kwargs):
     return _manifold_vit('manifold_vit_small_12_p16', pretrained, progress,
-                          kernel_size=16,
-                          img_size=img_size, positional_embedding=positional_embedding,
-                          num_layers=12, num_heads=8, mlp_ratio=4, embedding_dim=384,
-                          num_classes=num_classes,
-                          *args, **kwargs)
+                         kernel_size=16,
+                         img_size=img_size, positional_embedding=positional_embedding,
+                         num_layers=12, num_heads=8, mlp_ratio=4, embedding_dim=384,
+                         num_classes=num_classes,
+                         *args, **kwargs)
