@@ -48,7 +48,7 @@ class ManifoldViT(nn.Module):
                  num_classes=1000,
                  positional_embedding='learnable',
                  attention_type='all',
-                 ln_attention=False,
+                 ln_attention=True,
                  *args, **kwargs):
         super(ManifoldViT, self).__init__()
 

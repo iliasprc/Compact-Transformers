@@ -76,16 +76,16 @@ def cov_frobenius_norm(x1, x2):
 
 
 class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,qkv_bias=False):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
-        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.scale = head_dim ** -0.5
         self.sequence_length = sequence_length
-        self.qkv = Linear(dim, dim * 3, bias=True)
-        if self.sequence_length != -1:
-            self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
+        self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
+        # if self.sequence_length != -1:
+        #     self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -97,8 +97,8 @@ class RiemmanianAttention(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         dots = log_dist(q, k, use_covariance=True, use_log=False)
-        if self.sequence_length != -1:
-            dots = self.norm(dots)
+        # if self.sequence_length != -1:
+        #     dots = self.norm(dots)
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
         out = out.permute(0, 2, 1, 3).reshape(B, N, C)

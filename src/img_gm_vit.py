@@ -43,8 +43,8 @@ class img_gm_img_grassmannian(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.m = 4
-        self.lds_order = 4
+        self.m = 3
+        self.lds_order = 8
         self.om_layer = nn.Sequential(nn.LayerNorm(embedding_dim),
                                       ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m,
                                                          lds_size=self.lds_order),
@@ -82,7 +82,7 @@ class img_gm_img_grassmannian(nn.Module):
             positional_embedding=positional_embedding
         )
         self.img_classifier.fc = nn.Identity()
-        self.img_gm_classifier = nn.Sequential(nn.LayerNorm(2 * embedding_dim),
+        self.late_fusion_classifier= nn.Sequential(nn.LayerNorm(2 * embedding_dim),
                                                     nn.Linear(2 * embedding_dim, num_classes))
 
     def forward(self, image):
@@ -98,7 +98,7 @@ class img_gm_img_grassmannian(nn.Module):
         om_logits = self.om_classifier(obs_matrix)
         # print(img_logits.shape,om_logits.shape)
         # print(x.shape,om_logits.shape)
-        return self.img_gm_classifier(torch.cat((img_logits, om_logits), dim=-1))
+        return self.late_fusion_classifier(torch.cat((img_logits, om_logits), dim=-1))
 
 
 def _img_gm_vit_lite(arch, pretrained, progress,

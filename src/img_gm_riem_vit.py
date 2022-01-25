@@ -44,8 +44,8 @@ class Late_fusion_img_gm_riem_vit(nn.Module):
                                    activation=None,
                                    n_conv_layers=1,
                                    conv_bias=True)
-        self.m = 4
-        self.lds_order = 4
+        self.m = 3
+        self.lds_order = 8
         self.om_layer = nn.Sequential(nn.LayerNorm(embedding_dim),
                                       ObsMatrixTokenizer(image_size=img_size, patch_size=kernel_size, m=self.m,
                                                          lds_size=self.lds_order),
@@ -99,7 +99,7 @@ class Late_fusion_img_gm_riem_vit(nn.Module):
         )
         self.riem_classifier.fc = nn.Identity()
         self.img_classifier.fc = nn.Identity()
-        self.late_fusion_classifier = nn.Sequential(nn.LayerNorm(3*embedding_dim),nn.Linear(3 * embedding_dim, num_classes))
+        self.late_fusion_classifier = nn.Linear(3 * embedding_dim, num_classes)
 
     def forward(self, image):
         x = self.tokenizer(image)

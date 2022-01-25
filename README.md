@@ -1,4 +1,4 @@
-# Compact Transformers
+# Multiple Manifold Transformers
 
 	
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/escaping-the-big-data-paradigm-with-compact/image-classification-on-flowers-102)](https://paperswithcode.com/sota/image-classification-on-flowers-102?p=escaping-the-big-data-paradigm-with-compact)
@@ -6,6 +6,41 @@
 
 
 # How to run
+
+
+
+## Install locally
+
+### Requirements
+
+Python 3.7
+
+Our base model is in pure PyTorch and Torchvision. No extra packages are required.
+Please refer to [PyTorch's Getting Started](https://pytorch.org/get-started/locally/) page for detailed instructions.
+
+ 
+
+## Training
+
+[timm](https://github.com/rwightman/pytorch-image-models) is recommended for image classification training 
+and required for the training script provided in this repository:
+### Distributed training
+```shell
+./dist_classification.sh $NUM_GPUS -c $CONFIG_FILE /path/to/dataset
+```
+
+You can use our training configurations provided in `configs/`:
+```shell
+./dist_classification.sh 2 -c configs/imagenet.yml --model manifold_cct_7_7x2_224 /home/papastrat/Desktop/imagenet
+```
+
+### Non-distributed training
+```shell
+python train.py -c configs/datasets/cifar10.yml --model cct_7_3x1_32 /path/to/cifar10
+```
+```
+python train.py -c configs/datasets/cifar10.yml --model grassmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
+```
 
 ## Arguments
 
@@ -178,73 +213,6 @@
 
 ```
 
-## Install locally
-
-### Requirements
-
-Python 3.7
-
-Our base model is in pure PyTorch and Torchvision. No extra packages are required.
-Please refer to [PyTorch's Getting Started](https://pytorch.org/get-started/locally/) page for detailed instructions.
-
-Here are some of the models that can be imported from `src` (full list available in [Variants.md](Variants.md)):
-
- 
-
-You can simply import the names provided in the **Name** column:
-```python3
-from src import cct_14_7x2_384
-model = cct_14_7x2_384(pretrained=True, progress=True)
-```
-The config files are provided both to specify the training settings and hyperparameters, 
-and allow easier reproduction.
-
-Please note that the models missing pretrained weights will be updated soon. They were previously 
-trained using our old training script, and we're working on training them again with the new script 
-for consistency.
-
-
-You could even create your own models with different image resolutions, positional embeddings, and number of classes:
-```python3
-from src import cct_14_7x2_384, cct_7_7x2_224_sine
-model = cct_14_7x2_384(img_size=256)
-model = cct_7_7x2_224_sine(img_size=256, positional_embedding='sine')
-```
-Changing resolution and setting `pretrained=True` will interpolate the PE vector to support the new size, 
-just like ViT.
-
-These models are also based on experiments in the paper. You can create your own versions:
-```python3
-from src import cct_14
-model = cct_14(arch='custom', pretrained=False, progress=False, kernel_size=5, n_conv_layers=3)
-```
-
-You can even go further and create your own custom variant by importing the class CCT.
-
-All of these apply to CVT and ViT as well.
-
-
-## Training
-
-[timm](https://github.com/rwightman/pytorch-image-models) is recommended for image classification training 
-and required for the training script provided in this repository:
-### Distributed training
-```shell
-./dist_classification.sh $NUM_GPUS -c $CONFIG_FILE /path/to/dataset
-```
-
-You can use our training configurations provided in `configs/`:
-```shell
-./dist_classification.sh 2 -c configs/imagenet.yml --model manifold_cct_7_7x2_224 /home/papastrat/Desktop/imagenet
-```
-
-### Non-distributed training
-```shell
-python train.py -c configs/datasets/cifar10.yml --model cct_7_3x1_32 /path/to/cifar10
-```
-```
-python train.py -c configs/datasets/cifar10.yml --model grassmanian_vit_6_4_32 --gpu 0 --log-wandb ./data/CIFAR-10-images-master/
-```
 
 ### Models and config files
 We've updated this repository and moved the previous training script and the checkpoints associated 
@@ -261,7 +229,7 @@ convolutional layers.
 
  Download Cifar-10 and CIFAR-100 datasets using 
 
-```python
+```commandline
 $ pip install cifar2png
 ```
 

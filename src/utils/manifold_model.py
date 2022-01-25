@@ -273,7 +273,7 @@ class ManifoldformerClassifier(Module):
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
-        self.head = Linear(embedding_dim, num_classes)
+        self.fc = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
     def forward(self, x):
@@ -299,7 +299,7 @@ class ManifoldformerClassifier(Module):
         else:
             x = x[:, 0]
 
-        x = self.head(x)
+        x = self.fc(x)
         return x
 
     @staticmethod

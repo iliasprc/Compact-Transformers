@@ -23,6 +23,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 import torch
+import torch.nn as nn
 import logging
 import torchvision.utils
 import yaml
@@ -486,25 +487,24 @@ def main():
 
     if args.local_rank == 0:
         _logger.info('Scheduled epochs: {}'.format(num_epochs))
-
-    # create the train and eval datasets
-    # if args.dataset == 'cifar100':
-    #     _logger.info('USE TORCHVISION')
-    #     from torchvision.datasets import CIFAR100
-    #     dataset_train = CIFAR100(root='./data', train=True, download=True)
-    #     dataset_eval = CIFAR100(root='./data', train=False, download=True)
-    # elif args.dataset == 'cifar10':
-    #     _logger.info('USE TORCHVISION')
-    #     from torchvision.datasets import CIFAR10
-    #     dataset_train = CIFAR10(root='./data', train=True, download=True)
-    #     dataset_eval = CIFAR10(root='./data', train=False, download=True)
-    # else:
-    dataset_train = create_dataset(
-        args.dataset,
-        root=args.data_dir, split=args.train_split, is_training=True,
-        batch_size=args.batch_size, repeats=args.epoch_repeats)
-    dataset_eval = create_dataset(
-        args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
+    #create the train and eval datasets
+    if args.dataset == 'cifar100':
+        _logger.info('USE TORCHVISION')
+        from torchvision.datasets import CIFAR100
+        dataset_train = CIFAR100(root='./data', train=True, download=True)
+        dataset_eval = CIFAR100(root='./data', train=False, download=True)
+    elif args.dataset == 'cifar10':
+        _logger.info('USE TORCHVISION')
+        from torchvision.datasets import CIFAR10
+        dataset_train = CIFAR10(root='./data', train=True, download=True)
+        dataset_eval = CIFAR10(root='./data', train=False, download=True)
+    else:
+        dataset_train = create_dataset(
+            args.dataset,
+            root=args.data_dir, split=args.train_split, is_training=True,
+            batch_size=args.batch_size, repeats=args.epoch_repeats)
+        dataset_eval = create_dataset(
+            args.dataset, root=args.data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
 
     # setup mixup / cutmix
     collate_fn = None
