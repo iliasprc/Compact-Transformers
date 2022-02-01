@@ -751,7 +751,7 @@ def manifold_swin_large_patch4_window7_224_in22k(pretrained=False, **kwargs):
 
 
 @register_model
-def manifold_swin_tiny_32(pretrained=False, **kwargs):
+def manifold_swin_tiny_patch2_window4_32(pretrained=False, **kwargs):
     """ Swin-T @ 224x224, trained ImageNet-1k
     """
     model_kwargs = dict(
