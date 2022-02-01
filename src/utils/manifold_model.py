@@ -16,8 +16,9 @@ class RiemGrassAtt(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
 
-        self.riem_scale = head_dim ** -0.5
-        self.grassman_scale = head_dim ** -0.5
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.qkv = Linear(dim, dim * 3, bias=True)
 
         self.attn_drop = Dropout(attention_dropout)
@@ -67,7 +68,7 @@ class RiemGrassAtt(nn.Module):
 
 class EuclRiemGrassAtt(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
-                 ln_attention=False):
+                 ln_attention=True):
         super().__init__()
 
         self.num_heads = num_heads
@@ -124,6 +125,65 @@ class EuclRiemGrassAtt(nn.Module):
         return self.proj_drop(self.proj(out))
 
 
+class EuclGrassAtt(nn.Module):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
+                 ln_attention=True):
+        super().__init__()
+
+        self.num_heads = num_heads
+        head_dim = dim // self.num_heads
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        #self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.qkv = Linear(dim, dim * 3, bias=True)
+
+        self.attn_drop = Dropout(attention_dropout)
+        self.proj = Linear(dim, dim)
+        self.proj_drop = Dropout(projection_dropout)
+        self.sequence_len = sequence_length
+        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        if ln_attention:
+            self.conv_attn = nn.Sequential(
+                nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
+        else:
+            self.conv_attn = nn.Sequential(
+
+                nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+            )
+
+    def forward(self, x):
+        B, N, C = x.shape
+
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        # old_shape = q.shape
+
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+        # print(qgr.shape)
+        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
+        #
+        qgr = qgr  # .permute(0, 1, 3, 2)
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+
+        attn_ = self.conv_attn(torch.cat((attn,  attn_grassmman), dim=1)).softmax(
+            dim=-1)
+
+        out = torch.matmul(self.attn_drop(attn_), v)
+        # out = rearrange(out, 'b h n d -> b n (h d)')
+        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
+        return self.proj_drop(self.proj(out))
+
+
+
 class EuclideanRiemmanianAtt(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=True, attention_dropout=0.1, projection_dropout=0.1,
                  sequence_length=-1, ln_attention=False):
@@ -143,6 +203,7 @@ class EuclideanRiemmanianAtt(nn.Module):
         if ln_attention:
             self.conv_attn = nn.Sequential(
                 nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
+                #nn.InstanceNorm2d(2*self.num_heads),
                 nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
             )
         else:
@@ -194,8 +255,8 @@ class ManifoldEncoderLayer(Module):
             self.self_attn = EuclRiemGrassAtt(dim=d_model, num_heads=nhead,
                                               attention_dropout=attention_dropout, projection_dropout=dropout,
                                               sequence_length=sequence_length, ln_attention=ln_attention)
-        elif attention_type == 'grassmanian':
-            self.self_attn = RiemGrassAtt(dim=d_model, num_heads=nhead,
+        elif attention_type == 'gm':
+            self.self_attn = EuclGrassAtt(dim=d_model, num_heads=nhead,
                                           attention_dropout=attention_dropout, projection_dropout=dropout,
                                           sequence_length=sequence_length, ln_attention=ln_attention)
         self.linear1 = Linear(d_model, dim_feedforward)

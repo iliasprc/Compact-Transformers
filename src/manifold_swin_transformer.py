@@ -742,3 +742,13 @@ def manifold_swin_large_patch4_window7_224_in22k(pretrained=False, **kwargs):
     model_kwargs = dict(
         patch_size=4, window_size=7, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48), **kwargs)
     return _create_manifold_swin_transformer('manifold_swin_large_patch4_window7_224_in22k', pretrained=pretrained, **model_kwargs)
+
+
+
+@register_model
+def manifold_swin_tiny_32(pretrained=False, **kwargs):
+    """ Swin-T @ 224x224, trained ImageNet-1k
+    """
+    model_kwargs = dict(
+        patch_size=2, window_size=4, embed_dim=96, depths=(2, 6, 4), num_heads=(3,6,12), **kwargs)
+    return _create_manifold_swin_transformer('manifold_swin_tiny_patch2_window4_32', pretrained=pretrained, **model_kwargs)

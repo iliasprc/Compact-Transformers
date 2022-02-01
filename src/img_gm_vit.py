@@ -82,8 +82,7 @@ class img_gm_img_grassmannian(nn.Module):
             positional_embedding=positional_embedding
         )
         self.img_classifier.fc = nn.Identity()
-        self.late_fusion_classifier= nn.Sequential(nn.LayerNorm(2 * embedding_dim),
-                                                    nn.Linear(2 * embedding_dim, num_classes))
+        self.late_fusion_classifier= nn.Sequential(                    nn.Linear(2 * embedding_dim, num_classes))
 
     def forward(self, image):
         x = self.tokenizer(image)
