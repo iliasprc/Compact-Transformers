@@ -84,6 +84,11 @@ default_cfgs = {
         url='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_large_patch4_window7_224_22k.pth',
         num_classes=21841),
 
+
+    'manifold_swin_tiny_patch2_window4_32': _cfg(
+        input_size=(3, 32,32) , num_classes=10),
+
+
 }
 
 
