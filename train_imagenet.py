@@ -444,7 +444,7 @@ def main():
     # optionally resume from a checkpoint
     resume_epoch = None
     if args.resume:
-        resume_checkpoint(
+        resume_epoch = resume_checkpoint(
             model, args.resume,
             optimizer=None,
             loss_scaler=None,
