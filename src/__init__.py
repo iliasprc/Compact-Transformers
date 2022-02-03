@@ -10,7 +10,7 @@ from .img_riem_vit import *
 from .manifold_cct import *
 from .manifold_convit import *
 from .manifold_pit import *
-##
+from .manifold_pvt_v2 import *
 from .manifold_cvt import *
 from .manifold_vit import *
 from .riemmanian_vit import *
