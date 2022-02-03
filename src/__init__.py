@@ -16,3 +16,4 @@ from .manifold_vit import *
 from .riemmanian_vit import *
 from .vit import *
 from .manifold_swin_transformer import *
+from .swin_transformer import *

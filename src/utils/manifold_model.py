@@ -291,7 +291,7 @@ class ManifoldformerClassifier(Module):
                  positional_embedding='learnable',
                  attention_type='riem',
                  sequence_length=None,
-                 ln_attention=False):
+                 ln_attention=True):
         super().__init__()
         positional_embedding = positional_embedding if \
             positional_embedding in ['sine', 'learnable', 'none'] else 'sine'

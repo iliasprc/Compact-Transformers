@@ -320,7 +320,7 @@ def main():
 
     args, args_text = _parse_args(config_parser, parser)
 
-    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args)
@@ -648,11 +648,11 @@ def main():
                 # save proper checkpoint with eval metric
                 save_metric = eval_metrics[eval_metric]
                 best_metric, best_epoch = saver.save_checkpoint(epoch, metric=save_metric)
-                drive_path = os.path.join('/content/drive/MyDrive',output_dir,'last.pth')
-                if not os.path.exists(os.path.join('/content/drive/MyDrive',output_dir)):
-                    os.makedirs(os.path.join('/content/drive/MyDrive',output_dir))
-                d = {'state_dict':model.state_dict()}
-                torch.save(d,drive_path)
+                # drive_path = os.path.join('/content/drive/MyDrive',output_dir,'last.pth')
+                # if not os.path.exists(os.path.join('/content/drive/MyDrive',output_dir)):
+                #     os.makedirs(os.path.join('/content/drive/MyDrive',output_dir))
+                # d = {'state_dict':model.state_dict()}
+                # torch.save(d,drive_path)
 
     except KeyboardInterrupt:
         pass
