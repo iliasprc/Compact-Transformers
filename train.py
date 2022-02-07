@@ -320,7 +320,7 @@ def main():
 
     args, args_text = _parse_args(config_parser, parser)
 
-    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args)
@@ -446,7 +446,7 @@ def main():
     # optionally resume from a checkpoint
     resume_epoch = None
     if args.resume:
-        resume_checkpoint(
+        resume_epoch = resume_checkpoint(
             model, args.resume,
             optimizer=None,
             loss_scaler=None,

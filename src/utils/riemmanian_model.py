@@ -52,7 +52,7 @@ def log_dist(x1, x2, use_covariance=True, use_log=False):
     if use_covariance:
         x1 = covariance(x1)
         x2 = covariance(x2)
-
+    print(x1.shape)
     if use_log:
 
         d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
@@ -61,7 +61,7 @@ def log_dist(x1, x2, use_covariance=True, use_log=False):
     # print(d.min(),d.max())
     dist = torch.norm(d.unsqueeze(-1), dim=-1)
 
-    # print(dist.shape)
+    print(dist.shape)
 
     return dist
 
@@ -76,7 +76,8 @@ def cov_frobenius_norm(x1, x2):
 
 
 class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,qkv_bias=True):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
+                 qkv_bias=True):
         super().__init__()
 
         self.num_heads = num_heads
@@ -96,7 +97,7 @@ class RiemmanianAttention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        dots = log_dist(q, k, use_covariance=True, use_log=False)*self.scale
+        dots = log_dist(q, k, use_covariance=True, use_log=False) * self.scale
         # if self.sequence_length != -1:
         #     dots = self.norm(dots)
         out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)

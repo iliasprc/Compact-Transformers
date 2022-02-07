@@ -67,7 +67,7 @@ class RiemGrassAtt(nn.Module):
 
 
 class EuclRiemGrassAtt(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
+    def __init__(self, dim, num_heads=8,qkv_bias=True, attention_dropout=0.1, projection_dropout=0.1, sequence_length=1,
                  ln_attention=True):
         super().__init__()
 
@@ -76,16 +76,16 @@ class EuclRiemGrassAtt(nn.Module):
         self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
-        self.qkv = Linear(dim, dim * 3, bias=True)
+        self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
-        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+#        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         if ln_attention:
             self.conv_attn = nn.Sequential(
-                nn.LayerNorm((3 * num_heads, sequence_length, sequence_length)),
+                nn.BatchNorm2d(3 * num_heads),
                 nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
             )
         else:
@@ -115,7 +115,7 @@ class EuclRiemGrassAtt(nn.Module):
         attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn_riemmanian = self.attn_drop(cov_frobenius_norm(q, k) * self.riem_scale)
-
+        #print(attn_riemmanian.shape)
         attn_ = self.conv_attn(torch.cat((attn, attn_riemmanian, attn_grassmman), dim=1)).softmax(
             dim=-1)
 

@@ -28,7 +28,7 @@ try:
     from timm.models.registry import register_model
 except ImportError:
     from .registry import register_model
-from src.utils.manifold_model import EuclRiemGrassAtt,EuclideanRiemmanianAtt
+
 
 def _cfg(url='', **kwargs):
     return {
@@ -43,13 +43,13 @@ def _cfg(url='', **kwargs):
 
 default_cfgs = {
     # deit models (FB weights)
-    'manifold_pit_ti_224': _cfg(
+    'pit_ti_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_ti_730.pth'),
-    'manifold_pit_xs_224': _cfg(
+    'pit_xs_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_xs_781.pth'),
-    'manifold_pit_s_224': _cfg(
+    'pit_s_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_s_809.pth'),
-    'manifold_pit_b_224': _cfg(
+    'pit_b_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_b_820.pth'),
     'pit_ti_distilled_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_ti_distill_746.pth',
@@ -63,7 +63,7 @@ default_cfgs = {
     'pit_b_distilled_224': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-pit-weights/pit_b_distill_840.pth',
         classifier=('head', 'head_dist')),
-    'manifold_pit_ti_32':{
+    'pit_ti_32':{
 
 
 
@@ -76,13 +76,41 @@ default_cfgs = {
 }
 
 
+
+class Attention(nn.Module):
+    def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
+        super().__init__()
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        self.scale = head_dim ** -0.5
+
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
 class Block(nn.Module):
 
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0.,
                  drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm):
         super().__init__()
         self.norm1 = norm_layer(dim)
-        self.attn = EuclRiemGrassAtt(dim, num_heads=num_heads, qkv_bias=qkv_bias, attention_dropout=attn_drop, projection_dropout=drop)
+        self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
@@ -301,7 +329,7 @@ def _create_pit(variant, pretrained=False, **kwargs):
 
 
 @register_model
-def manifold_pit_b_224(pretrained, **kwargs):
+def pit_b_224(pretrained, **kwargs):
     model_kwargs = dict(
         patch_size=14,
         stride=7,
@@ -311,11 +339,11 @@ def manifold_pit_b_224(pretrained, **kwargs):
         mlp_ratio=4,
         **kwargs
     )
-    return _create_pit('manifold_pit_b_224', pretrained, **model_kwargs)
+    return _create_pit('pit_b_224', pretrained, **model_kwargs)
 
 
 @register_model
-def manifold_pit_s_224(pretrained, **kwargs):
+def pit_s_224(pretrained, **kwargs):
     model_kwargs = dict(
         patch_size=16,
         stride=8,
@@ -325,11 +353,11 @@ def manifold_pit_s_224(pretrained, **kwargs):
         mlp_ratio=4,
         **kwargs
     )
-    return _create_pit('manifold_pit_s_224', pretrained, **model_kwargs)
+    return _create_pit('pit_s_224', pretrained, **model_kwargs)
 
 
 @register_model
-def manifold_pit_xs_224(pretrained, **kwargs):
+def pit_xs_224(pretrained, **kwargs):
     model_kwargs = dict(
         patch_size=16,
         stride=8,
@@ -339,11 +367,11 @@ def manifold_pit_xs_224(pretrained, **kwargs):
         mlp_ratio=4,
         **kwargs
     )
-    return _create_pit('manifold_pit_xs_224', pretrained, **model_kwargs)
+    return _create_pit('pit_xs_224', pretrained, **model_kwargs)
 
 
 @register_model
-def manifold_pit_ti_224(pretrained, **kwargs):
+def pit_ti_224(pretrained, **kwargs):
     model_kwargs = dict(
         patch_size=16,
         stride=8,
@@ -353,10 +381,10 @@ def manifold_pit_ti_224(pretrained, **kwargs):
         mlp_ratio=4,
         **kwargs
     )
-    return _create_pit('manifold_pit_ti_224', pretrained, **model_kwargs)
+    return _create_pit('pit_ti_224', pretrained, **model_kwargs)
 
 @register_model
-def manifold_pit_ti_32(pretrained, **kwargs):
+def pit_ti_32(pretrained, **kwargs):
     model_kwargs = dict(
         patch_size=4,
         stride=2,
@@ -366,4 +394,4 @@ def manifold_pit_ti_32(pretrained, **kwargs):
         mlp_ratio=4,
         **kwargs
     )
-    return _create_pit('manifold_pit_ti_32', pretrained, **model_kwargs)
+    return _create_pit('pit_ti_32', pretrained, **model_kwargs)

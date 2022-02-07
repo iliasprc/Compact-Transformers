@@ -22,7 +22,9 @@ import time
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
-
+import torch
+import logging
+import torch.nn as nn
 import torchvision.utils
 import yaml
 from timm.data import create_dataset, create_loader, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
@@ -61,7 +63,6 @@ try:
     has_wandb = True
 except ImportError:
     has_wandb = False
-
 torch.backends.cudnn.benchmark = True
 _logger = logging.getLogger('train')
 
@@ -678,6 +679,7 @@ def train_one_epoch(
     end = time.time()
     last_idx = len(loader) - 1
     num_updates = epoch * len(loader)
+    STEPS = 16
     for batch_idx, (input, target) in enumerate(loader):
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
@@ -691,11 +693,12 @@ def train_one_epoch(
         with amp_autocast():
             output = model(input)
             loss = loss_fn(output, target)
+            loss = loss/STEPS
+
 
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
 
-        optimizer.zero_grad()
         if loss_scaler is not None:
             loss_scaler(
                 loss, optimizer,
@@ -708,7 +711,11 @@ def train_one_epoch(
                 dispatch_clip_grad(
                     model_parameters(model, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
-            optimizer.step()
+            if (batch_idx+1)%STEPS==0:
+                optimizer.zero_grad()
+                optimizer.step()
+                if lr_scheduler is not None:
+                    lr_scheduler.step_update(num_updates=num_updates, metric=losses_m.avg)
 
         if model_ema is not None:
             model_ema.update(model)
@@ -753,8 +760,7 @@ def train_one_epoch(
                 last_batch or (batch_idx + 1) % args.recovery_interval == 0):
             saver.save_recovery(epoch, batch_idx=batch_idx)
 
-        if lr_scheduler is not None:
-            lr_scheduler.step_update(num_updates=num_updates, metric=losses_m.avg)
+
 
         end = time.time()
         # end for
