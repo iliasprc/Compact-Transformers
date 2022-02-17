@@ -58,12 +58,12 @@ class RiemmanianViTLite(nn.Module):
             positional_embedding=positional_embedding
         )
 
-    def forward(self, x):
+    def forward(self, x,return_attention=False):
         x = self.tokenizer(x)
         # x = covariance(x)
         # print(x.shape)
         # x = self.project(x)
-        return self.classifier(x)
+        return self.classifier(x,return_attention=return_attention)
 
 
 def _riemmanian_vit_lite(arch, pretrained, progress,

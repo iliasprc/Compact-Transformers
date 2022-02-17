@@ -58,9 +58,9 @@ class ViTLite(nn.Module):
             positional_embedding=positional_embedding
         )
 
-    def forward(self, x):
+    def forward(self, x,return_attention=False):
         x = self.tokenizer(x)
-        return self.classifier(x)
+        return self.classifier(x,return_attention=return_attention)
 
 
 def _vit_lite(arch, pretrained, progress,

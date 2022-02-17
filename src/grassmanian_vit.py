@@ -64,12 +64,12 @@ class GrassmanianViTLite(nn.Module):
             positional_embedding=positional_embedding
         )
 
-    def forward(self, x):
+    def forward(self, x,return_attention=False):
         x = self.tokenizer(x)
 
         om = self.om_layer(x)
 
-        return self.classifier(om)
+        return self.classifier(om,return_attention=return_attention)
 
 
 def _grassmanian_vit_lite(arch, pretrained, progress,

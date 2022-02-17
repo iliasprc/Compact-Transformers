@@ -1,95 +1,25 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from einops import rearrange
 from torch.nn import Module, ModuleList, Linear, Dropout, LayerNorm, Identity, Parameter, init
 
+from src.utils.riemmanian_model import log_dist,cov_frobenius_norm
 from .stochastic_depth import DropPath
 
 
-def covariance(X):
-    D = X.shape[-1]
-    mean = torch.mean(X, dim=-1).unsqueeze(-1)
-    X = X - mean
-    if D==1:
-        return 1 / (D)  * X @ X.transpose(-1, -2)
-    return 1 / (D - 1) * X @ X.transpose(-1, -2)
-
-
-def riemannian_dist(x1, x2, use_covariance=False):
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
-
-    s = (torch.linalg.inv(x1) @ x2)
-
-    dist = torch.norm(torch.log(s + s.min() + 1.0), dim=-1, keepdim=True)
-    b, h, t, _ = dist.shape
-    dist = dist.repeat(1, 1, 1, t)
-    # print(dist.shape)
-    return dist
-
-
-def log_dist1(x1, x2, use_covariance=True, use_log=False):
-    # print(x1.shape)
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
-
-    if use_log:
-
-        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
-    else:
-        d = x1 - x2
-    # print(d.min(),d.max())
-    dist = torch.norm(d, dim=-1, keepdim=True)
-    b, h, t, _ = dist.shape
-    dist = dist.repeat(1, 1, 1, t)
-    # print(dist.shape)
-
-    return dist
-
-
-def log_dist(x1, x2, use_covariance=True, use_log=False):
-    # print(x1.shape)
-    if use_covariance:
-        x1 = covariance(x1)
-        x2 = covariance(x2)
-    print(x1.shape)
-    if use_log:
-
-        d = torch.log(x1 + 1.0) - torch.log(x2 + 1.0)
-    else:
-        d = x1 - x2
-    # print(d.min(),d.max())
-    dist = torch.norm(d.unsqueeze(-1), dim=-1)
-
-    print(dist.shape)
-
-    return dist
-
-
-def cov_frobenius_norm(x1, x2):
-    x1 = covariance(x1)
-    x2 = covariance(x2)
-    # distance
-    dots = torch.matmul(x1, x2.transpose(-1, -2)).unsqueeze(2)
-
-    attn_spd = torch.linalg.norm(dots, dim=2)
-    return attn_spd
-
 
 class RiemmanianAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1, sequence_length=-1,
-                 qkv_bias=True):
+    def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1,sequence_length=-1):
         super().__init__()
 
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
         self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.sequence_length = sequence_length
-        self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
-        # if self.sequence_length != -1:
-        #     self.norm = nn.LayerNorm(normalized_shape=(sequence_length))
+        self.qkv = Linear(dim, dim * 3, bias=True)
+        if self.sequence_length!=-1:
+            self.norm = nn.LayerNorm(normalized_shape=( sequence_length))
 
         self.attn_drop = Dropout(attention_dropout)
         self.proj = Linear(dim, dim)
@@ -100,14 +30,13 @@ class RiemmanianAttention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        dots = log_dist(q, k, use_covariance=True, use_log=False) #* self.scale
-        # if self.sequence_length != -1:
-        #     dots = self.norm(dots)
-        att = dots.softmax(dim=-1)
-        out = torch.matmul(self.attn_drop(att), v)
+        dots = cov_frobenius_norm(q, k)
+        if self.sequence_length != -1:
+            dots = self.norm(dots)
+        out = torch.matmul(self.attn_drop(dots.softmax(dim=-1)), v)
 
-        out = out.permute(0, 2, 1, 3).reshape(B, N, C)
-        return self.proj_drop(self.proj(out)),att
+        out = out.permute(0,2,1,3).reshape(B,N,C)
+        return self.proj_drop(self.proj(out))
 
 
 class RiemmanianEncoderLayer(Module):
@@ -120,8 +49,7 @@ class RiemmanianEncoderLayer(Module):
         super(RiemmanianEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
         self.self_attn = RiemmanianAttention(dim=d_model, num_heads=nhead,
-                                             attention_dropout=attention_dropout, projection_dropout=dropout,
-                                             sequence_length=sequence_length)
+                                             attention_dropout=attention_dropout, projection_dropout=dropout, sequence_length=sequence_length)
 
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout1 = Dropout(dropout)
@@ -134,12 +62,11 @@ class RiemmanianEncoderLayer(Module):
         self.activation = F.gelu
 
     def forward(self, src: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        x,w = self.self_attn(self.pre_norm(src))
-        src = src + self.drop_path(x)
+        src = src + self.drop_path(self.self_attn(self.pre_norm(src)))
         src = self.norm1(src)
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src = src + self.drop_path(self.dropout2(src2))
-        return src,w
+        return src
 
 
 class RiemmanianformerClassifier(Module):
@@ -191,15 +118,14 @@ class RiemmanianformerClassifier(Module):
         self.blocks = ModuleList([
             RiemmanianEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                    dim_feedforward=dim_feedforward, dropout=dropout,
-                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i],
-                                   sequence_length=sequence_length)
+                                   attention_dropout=attention_dropout, drop_path_rate=dpr[i],sequence_length=sequence_length)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
         self.fc = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
-    def forward(self, x, return_attention=False):
+    def forward(self, x, obs_matrix=None):
         if self.positional_emb is None and x.size(1) < self.sequence_length:
             x = F.pad(x, (0, 0, 0, self.n_channels - x.size(1)), mode='constant', value=0)
 
@@ -213,7 +139,7 @@ class RiemmanianformerClassifier(Module):
         x = self.dropout(x)
 
         for blk in self.blocks:
-            x,w = blk(x)
+            x = blk(x)
         x = self.norm(x)
 
         if self.seq_pool:
@@ -222,8 +148,6 @@ class RiemmanianformerClassifier(Module):
             x = x[:, 0]
 
         x = self.fc(x)
-        if return_attention:
-            return x,w
         return x
 
     @staticmethod

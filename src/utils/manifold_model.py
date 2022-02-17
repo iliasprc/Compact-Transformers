@@ -67,8 +67,9 @@ class RiemGrassAtt(nn.Module):
 
 
 class EuclRiemGrassAtt(nn.Module):
-    def __init__(self, dim, num_heads=8,qkv_bias=True, attention_dropout=0.1, projection_dropout=0.1, sequence_length=1,
-                 ln_attention=True):
+    def __init__(self, dim, num_heads=8, qkv_bias=True, attention_dropout=0.1, projection_dropout=0.1,
+                 sequence_length=1,
+                 ln_attention=True, return_map=False):
         super().__init__()
 
         self.num_heads = num_heads
@@ -82,17 +83,19 @@ class EuclRiemGrassAtt(nn.Module):
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
-#        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        #        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         if ln_attention:
             self.conv_attn = nn.Sequential(
-                nn.BatchNorm2d(3 * num_heads),
-                nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+                nn.LayerNorm((3 * num_heads, sequence_length, sequence_length)),
+                nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),
+
             )
         else:
             self.conv_attn = nn.Sequential(
 
                 nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
             )
+        self.return_map = return_map
 
     def forward(self, x):
         B, N, C = x.shape
@@ -104,10 +107,8 @@ class EuclRiemGrassAtt(nn.Module):
 
         qgr, _ = grassmanian_point(q)
         kgr, _ = grassmanian_point(k)
-        # print(qgr.shape)
-        # # rieem_attn = log_dist(q, k, use_covariance=True, use_log=False)
-        #
-        qgr = qgr  # .permute(0, 1, 3, 2)
+
+
         kgr = kgr.permute(0, 1, 3, 2)
 
         dots = torch.matmul(qgr, kgr).unsqueeze(2)
@@ -115,14 +116,15 @@ class EuclRiemGrassAtt(nn.Module):
         attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn_riemmanian = self.attn_drop(cov_frobenius_norm(q, k) * self.riem_scale)
-        #print(attn_riemmanian.shape)
+        # print(attn_riemmanian.shape)
         attn_ = self.conv_attn(torch.cat((attn, attn_riemmanian, attn_grassmman), dim=1)).softmax(
             dim=-1)
 
         out = torch.matmul(self.attn_drop(attn_), v)
         # out = rearrange(out, 'b h n d -> b n (h d)')
         out = out.permute(0, 2, 1, 3).reshape(B, N, C)
-        return self.proj_drop(self.proj(out))
+
+        return self.proj_drop(self.proj(out)), attn_
 
 
 class EuclGrassAtt(nn.Module):
@@ -133,7 +135,7 @@ class EuclGrassAtt(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // self.num_heads
         self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
-        #self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        # self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.qkv = Linear(dim, dim * 3, bias=True)
 
@@ -141,7 +143,7 @@ class EuclGrassAtt(nn.Module):
         self.proj = Linear(dim, dim)
         self.proj_drop = Dropout(projection_dropout)
         self.sequence_len = sequence_length
-        self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
+        #self.attn_matrix = nn.Parameter(torch.randn(sequence_length, sequence_length))
         if ln_attention:
             self.conv_attn = nn.Sequential(
                 nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
@@ -174,14 +176,13 @@ class EuclGrassAtt(nn.Module):
         attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
         attn = (q @ k.transpose(-2, -1)) * self.scale
 
-        attn_ = self.conv_attn(torch.cat((attn,  attn_grassmman), dim=1)).softmax(
+        attn_ = self.conv_attn(torch.cat((attn, attn_grassmman), dim=1)).softmax(
             dim=-1)
 
         out = torch.matmul(self.attn_drop(attn_), v)
         # out = rearrange(out, 'b h n d -> b n (h d)')
         out = out.permute(0, 2, 1, 3).reshape(B, N, C)
-        return self.proj_drop(self.proj(out))
-
+        return self.proj_drop(self.proj(out)), attn_
 
 
 class EuclideanRiemmanianAtt(nn.Module):
@@ -203,7 +204,7 @@ class EuclideanRiemmanianAtt(nn.Module):
         if ln_attention:
             self.conv_attn = nn.Sequential(
                 nn.LayerNorm((2 * num_heads, sequence_length, sequence_length)),
-                #nn.InstanceNorm2d(2*self.num_heads),
+                # nn.InstanceNorm2d(2*self.num_heads),
                 nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
             )
         else:
@@ -231,7 +232,7 @@ class EuclideanRiemmanianAtt(nn.Module):
         out = torch.matmul(self.attn_drop(attn_), v)
 
         out = out.permute(0, 2, 1, 3).reshape(B, N, C)
-        return self.proj_drop(self.proj(out))
+        return self.proj_drop(self.proj(out)), attn_
 
 
 class ManifoldEncoderLayer(Module):
@@ -243,18 +244,19 @@ class ManifoldEncoderLayer(Module):
     """
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='riem', sequence_length=-1,
-                 ln_attention=False):
+                 attention_dropout=0.1, drop_path_rate=0.1, attention_type='all', sequence_length=-1,
+                 ln_attention=False, return_map=False, **kwargs):
         super(ManifoldEncoderLayer, self).__init__()
         self.pre_norm = LayerNorm(d_model)
-        if attention_type == 'riem':
+        if attention_type == 'spd':
             self.self_attn = EuclideanRiemmanianAtt(dim=d_model, num_heads=nhead,
                                                     attention_dropout=attention_dropout, projection_dropout=dropout,
                                                     sequence_length=sequence_length, ln_attention=ln_attention)
         elif attention_type == 'all':
             self.self_attn = EuclRiemGrassAtt(dim=d_model, num_heads=nhead,
                                               attention_dropout=attention_dropout, projection_dropout=dropout,
-                                              sequence_length=sequence_length, ln_attention=ln_attention)
+                                              sequence_length=sequence_length, ln_attention=ln_attention,
+                                              return_map=return_map)
         elif attention_type == 'gm':
             self.self_attn = EuclGrassAtt(dim=d_model, num_heads=nhead,
                                           attention_dropout=attention_dropout, projection_dropout=dropout,
@@ -270,11 +272,12 @@ class ManifoldEncoderLayer(Module):
         self.activation = F.gelu
 
     def forward(self, src: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        src = src + self.drop_path(self.self_attn(self.pre_norm(src)))
+        x, w = self.self_attn(self.pre_norm(src))
+        src = src + self.drop_path(x)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src = src + self.drop_path(self.dropout2(src2))
-        return src
+        return src, w
 
 
 class ManifoldformerClassifier(Module):
@@ -291,7 +294,8 @@ class ManifoldformerClassifier(Module):
                  positional_embedding='learnable',
                  attention_type='riem',
                  sequence_length=None,
-                 ln_attention=True):
+                 ln_attention=True,
+                 return_map=False):
         super().__init__()
         positional_embedding = positional_embedding if \
             positional_embedding in ['sine', 'learnable', 'none'] else 'sine'
@@ -300,6 +304,7 @@ class ManifoldformerClassifier(Module):
         self.sequence_length = sequence_length
         self.seq_pool = seq_pool
         self.attention_type = attention_type
+        self.return_map = return_map
 
         assert sequence_length is not None or positional_embedding == 'none', \
             f"Positional embedding is set to {positional_embedding} and" \
@@ -330,14 +335,14 @@ class ManifoldformerClassifier(Module):
                                  dim_feedforward=dim_feedforward, dropout=dropout,
                                  attention_dropout=attention_dropout, drop_path_rate=dpr[i],
                                  attention_type=attention_type,
-                                 sequence_length=sequence_length, ln_attention=ln_attention)
+                                 sequence_length=sequence_length, ln_attention=ln_attention, return_map=self.return_map)
             for i in range(num_layers)])
         self.norm = LayerNorm(embedding_dim)
 
         self.fc = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
-    def forward(self, x):
+    def forward(self, x, return_attention=False):
         if self.positional_emb is None and x.size(1) < self.sequence_length:
             x = F.pad(x, (0, 0, 0, self.n_channels - x.size(1)), mode='constant', value=0)
 
@@ -351,7 +356,7 @@ class ManifoldformerClassifier(Module):
         x = self.dropout(x)
 
         for blk in self.blocks:
-            x = blk(x)
+            x, attn_weights = blk(x)
         x = self.norm(x)
 
         if self.seq_pool:
@@ -361,6 +366,8 @@ class ManifoldformerClassifier(Module):
             x = x[:, 0]
 
         x = self.fc(x)
+        if return_attention:
+            return x, attn_weights
         return x
 
     @staticmethod

@@ -49,6 +49,7 @@ class ManifoldViT(nn.Module):
                  positional_embedding='learnable',
                  attention_type='all',
                  ln_attention=True,
+                 return_map=True,
                  *args, **kwargs):
         super(ManifoldViT, self).__init__()
 
@@ -77,13 +78,13 @@ class ManifoldViT(nn.Module):
             num_classes=num_classes,
             positional_embedding=positional_embedding,
             attention_type=attention_type,
-            ln_attention=ln_attention
+            ln_attention=ln_attention,
+            return_map=return_map
         )
 
-    def forward(self, x):
+    def forward(self, x,return_attention=False):
         x = self.tokenizer(x)
-
-        return self.classifier(x)
+        return self.classifier(x,return_attention=return_attention)
 
 
 def _manifold_vit(arch, pretrained, progress,

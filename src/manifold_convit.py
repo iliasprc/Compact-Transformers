@@ -2,7 +2,8 @@
 
 @article{d2021convit,
   title={ConViT: Improving Vision Transformers with Soft Convolutional Inductive Biases},
-  author={d'Ascoli, St{\'e}phane and Touvron, Hugo and Leavitt, Matthew and Morcos, Ari and Biroli, Giulio and Sagun, Levent},
+  author={d'Ascoli, St{\'e}phane and Touvron, Hugo and Leavitt, Matthew and Morcos, Ari and Biroli, Giulio and Sagun,
+  Levent},
   journal={arXiv preprint arXiv:2103.10697},
   year={2021}
 }
@@ -20,14 +21,12 @@ Original code: https://github.com/facebookresearch/convit, original copyright be
 https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 '''
 
-import torch
-import torch.nn as nn
 from functools import partial
-import torch.nn.functional as F
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.helpers import build_model_with_cfg
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_, PatchEmbed, Mlp
+from timm.models.layers import DropPath, trunc_normal_, PatchEmbed, Mlp
+
 try:
     from timm.models.registry import register_model
 except ImportError:
@@ -35,32 +34,39 @@ except ImportError:
 from timm.models.vision_transformer_hybrid import HybridEmbed
 
 from src.utils.riemmanian_model import cov_frobenius_norm
+from src.utils.lds import grassmanian_point
 import torch
 import torch.nn as nn
 
 
 def _cfg(url='', **kwargs):
     return {
-        'url': url,
+        'url'        : url,
         'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD, 'fixed_input_size': True,
-        'first_conv': 'patch_embed.proj', 'classifier': 'head',
+        'mean'       : IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD, 'fixed_input_size': True,
+        'first_conv' : 'patch_embed.proj', 'classifier': 'head',
         **kwargs
     }
 
 
 default_cfgs = {
     # ConViT
-    'manifold_convit_tiny': _cfg(
+    'manifold_convit_tiny_32':{
+        'url'        : "https://dl.fbaipublicfiles.com/convit/convit_tiny.pth",
+        'num_classes': 1000, 'input_size': (3, 32, 32), 'pool_size': None,
+        'mean'       : IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD, 'fixed_input_size': True,
+        'first_conv' : 'patch_embed.proj', 'classifier': 'head'
+    },
+    'manifold_convit_tiny' : _cfg(
         url="https://dl.fbaipublicfiles.com/convit/convit_tiny.pth"),
     'manifold_convit_small': _cfg(
         url="https://dl.fbaipublicfiles.com/convit/convit_small.pth"),
-    'manifold_convit_base': _cfg(
+    'manifold_convit_base' : _cfg(
         url="https://dl.fbaipublicfiles.com/convit/convit_base.pth")
 }
 
 
-#@register_notrace_module  # reason: FX can't symbolically trace control flow in forward method
+# @register_notrace_module  # reason: FX can't symbolically trace control flow in forward method
 class GPSA(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.,
                  locality_strength=1.):
@@ -68,7 +74,9 @@ class GPSA(nn.Module):
         self.num_heads = num_heads
         self.dim = dim
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.locality_strength = locality_strength
 
         self.qk = nn.Linear(dim, dim * 2, bias=qkv_bias)
@@ -81,7 +89,10 @@ class GPSA(nn.Module):
         self.gating_param = nn.Parameter(torch.ones(self.num_heads))
         self.rel_indices: torch.Tensor = torch.zeros(1, 1, 1, 3)  # silly torchscript hack, won't work with None
 
-        self.conv_attn = nn.Sequential(nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)),nn.BatchNorm2d(num_heads))
+        self.conv_attn = nn.Sequential(
+            nn.BatchNorm2d(3 * self.num_heads),
+            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)))
+
     def forward(self, x):
         B, N, C = x.shape
         if self.rel_indices is None or self.rel_indices.shape[1] != N:
@@ -102,9 +113,17 @@ class GPSA(nn.Module):
         pos_score = self.pos_proj(pos_score).permute(0, 3, 1, 2)
 
         score_riemmanian = cov_frobenius_norm(q, k) * self.scale
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
 
         patch_score = (q @ k.transpose(-2, -1)) * self.scale
-        patch_score = self.conv_attn(torch.cat( (patch_score,score_riemmanian), dim=1))
+        patch_score = self.conv_attn(torch.cat((patch_score, score_riemmanian,attn_grassmman), dim=1))
         patch_score = patch_score.softmax(dim=-1)
         pos_score = pos_score.softmax(dim=-1)
 
@@ -156,25 +175,35 @@ class MHSA(nn.Module):
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
-
+        self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.riem_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
+        self.grassman_scale = nn.Parameter(torch.tensor(head_dim ** -0.5))
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-        self.conv_attn = nn.Conv2d(in_channels=2 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1))
+        self.conv_attn = nn.Sequential(
+            nn.BatchNorm2d(3 * self.num_heads),
+            nn.Conv2d(in_channels=3 * self.num_heads, out_channels=num_heads, kernel_size=(1, 1)))
     def get_attention_map(self, x, return_map=False):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
         attn_map = (q @ k.transpose(-2, -1)) * self.scale
 
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
 
         attn_riemmanian = cov_frobenius_norm(q, k) * self.scale
 
-
-        attn_map = self.conv_attn(torch.cat((attn_map, attn_riemmanian), dim=1))
+        attn_map = self.conv_attn(torch.cat((attn_map, attn_riemmanian, attn_grassmman), dim=1))
 
         attn_map = attn_map.softmax(dim=-1).mean(0)
 
@@ -198,10 +227,20 @@ class MHSA(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
+
+
+        qgr, _ = grassmanian_point(q)
+        kgr, _ = grassmanian_point(k)
+
+        kgr = kgr.permute(0, 1, 3, 2)
+
+        dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
+
         attn_riemmanian = cov_frobenius_norm(q, k) * self.scale
 
-
-        attn = self.conv_attn(torch.cat((attn, attn_riemmanian), dim=1))
+        attn = self.conv_attn(torch.cat((attn, attn_riemmanian,attn_grassmman), dim=1))
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
@@ -241,7 +280,7 @@ class Manifold_ConViT(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
                  num_heads=12, mlp_ratio=4., qkv_bias=False, drop_rate=0., attn_drop_rate=0.,
                  drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, global_pool=None,
-                 local_up_to_layer=3, locality_strength=1., use_pos_embed=True,attention_type='all'):
+                 local_up_to_layer=3, locality_strength=1., use_pos_embed=True, attention_type='all',**kwargs):
         super().__init__()
         embed_dim *= num_heads
         self.num_classes = num_classes
@@ -283,7 +322,7 @@ class Manifold_ConViT(nn.Module):
 
         # Classifier head
         self.feature_info = [dict(num_chs=embed_dim, reduction=0, module='head')]
-        #self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        # self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
         self.classifier = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         trunc_normal_(self.cls_token, std=.02)
@@ -346,6 +385,15 @@ def _create_manifold_convit(variant, pretrained=False, **kwargs):
         pretrained_strict=False,
         **kwargs)
 
+
+
+@register_model
+def manifold_convit_tiny_32(pretrained=False, **kwargs):
+    model_args = dict(
+        local_up_to_layer=10, locality_strength=1.0, embed_dim=48,
+        num_heads=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    model = _create_manifold_convit(variant='manifold_convit_tiny_32', pretrained=pretrained, **model_args)
+    return model
 
 @register_model
 def manifold_convit_tiny(pretrained=False, **kwargs):

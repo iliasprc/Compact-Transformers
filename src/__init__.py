@@ -1,5 +1,6 @@
 from .cct import *
 from .cvt import *
+from .t2t_vit import *
 from .early_fusion_image_grassmanian_vit import *
 from .gm_riem_vit import *
 from .grassmanian_cct import *
@@ -18,3 +19,6 @@ from .vit import *
 from .pit import *
 from .manifold_swin_transformer import *
 from .swin_transformer import *
+from .nest import *
+from .manifold_nest import *
+from .manifold_cait import *

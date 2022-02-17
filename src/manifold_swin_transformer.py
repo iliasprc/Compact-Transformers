@@ -217,7 +217,7 @@ class WindowAttention(nn.Module):
         return x
 
 
-class EuclideanRiem_WindowAttention(nn.Module):
+class EuclideanSPD_WindowAttention(nn.Module):
     r""" Window based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
 
@@ -476,8 +476,8 @@ class SwinTransformerBlock(nn.Module):
             self.attn = E_SPD_G_WindowAttention(
                 dim, window_size=to_2tuple(self.window_size), num_heads=num_heads, qkv_bias=qkv_bias,
                 attn_drop=attn_drop, proj_drop=drop, sequence_length=sequence_length, ln_attention=ln_attention)
-        elif attention_type == 'riem':
-            self.attn = EuclideanRiem_WindowAttention(
+        elif attention_type == 'spd':
+            self.attn = EuclideanSPD_WindowAttention(
                 dim, window_size=to_2tuple(self.window_size), num_heads=num_heads, qkv_bias=qkv_bias,
                 attn_drop=attn_drop, proj_drop=drop, sequence_length=sequence_length, ln_attention=ln_attention)
         else:

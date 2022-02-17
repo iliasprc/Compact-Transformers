@@ -69,7 +69,7 @@ class Attention(Module):
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
-        return x
+        return x,attn
 
 
 class MaskedAttention(Module):
@@ -130,11 +130,12 @@ class TransformerEncoderLayer(Module):
         self.activation = F.gelu
 
     def forward(self, src: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        src = src + self.drop_path(self.self_attn(self.pre_norm(src)))
+        x, w = self.self_attn(self.pre_norm(src))
+        src = src + self.drop_path(x)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src = src + self.drop_path(self.dropout2(src2))
-        return src
+        return src,w
 
 
 class GrassmanianEncoderLayer(Module):
@@ -253,7 +254,7 @@ class TransformerClassifier(Module):
         self.fc = Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
-    def forward(self, x):
+    def forward(self, x,return_attention=False):
         if self.positional_emb is None and x.size(1) < self.sequence_length:
             x = F.pad(x, (0, 0, 0, self.n_channels - x.size(1)), mode='constant', value=0)
 
@@ -267,7 +268,7 @@ class TransformerClassifier(Module):
         x = self.dropout(x)
 
         for blk in self.blocks:
-            x = blk(x)
+            x ,attn_weights= blk(x)
         x = self.norm(x)
 
         if self.seq_pool:
@@ -276,6 +277,8 @@ class TransformerClassifier(Module):
             x = x[:, 0]
 
         x = self.fc(x)
+        if return_attention:
+            return x,attn_weights
         return x
 
     @staticmethod

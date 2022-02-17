@@ -88,8 +88,8 @@ def arguments():
                         help='dataset validation split (default: validation)')
     parser.add_argument('--model', default='resnet101', type=str, metavar='MODEL',
                         help='Name of model to train (default: "countception"')
-    parser.add_argument('--attention_type', default='riem', type=str, metavar='ATT',
-                        help='Type of attention to use', choices=('self', 'gm', 'riem', 'all'))
+    parser.add_argument('--attention_type', default='all', type=str, metavar='ATT',
+                        help='Type of attention to use', choices=('self', 'gm', 'spd', 'all'))
     parser.add_argument('--pretrained', action='store_true', default=False,
                         help='Start with pretrained version of specified network (if avail)')
     parser.add_argument('--initial-checkpoint', default='', type=str, metavar='PATH',
@@ -498,7 +498,14 @@ def main():
         from torchvision.datasets import CIFAR10
         dataset_train = CIFAR10(root='./data', train=True, download=True)
         dataset_eval = CIFAR10(root='./data', train=False, download=True)
+    elif args.dataset == 'mnist':
+        _logger.info('USE TORCHVISION')
+        from torchvision.datasets import MNIST
+        dataset_train = MNIST(root='./data', train=True, download=True,transform=torchvision.transforms.Grayscale(3))
+        dataset_eval = MNIST(root='./data', train=False, download=True,transform=torchvision.transforms.Grayscale(3))
+
     else:
+
         dataset_train = create_dataset(
             args.dataset,
             root=args.data_dir, split=args.train_split, is_training=True,

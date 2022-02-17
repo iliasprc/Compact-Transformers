@@ -3,6 +3,19 @@ import torch
 
 
 def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
+    """
+
+    Args:
+        input_data: data tensor
+        lds_size: lds order
+        STABILIZER:
+        HLDS:
+        hlds_channels:
+
+    Returns: A, C
+
+    """
+    # Create lds system
     # % % HLDS = 0
     # % % lds_size = 4
     # % % Stablilizer = False
@@ -43,6 +56,16 @@ def createLDS(input_data, lds_size, STABILIZER=False, HLDS=0, hlds_channels=0):
 
 
 def observability_matrix(A, C, m):
+    """
+    Create observability matrix
+    Args:
+        A:
+        C:
+        m:
+
+    Returns:
+
+    """
     Om = torch.cat([C, torch.matmul(C, A)], dim=0)
     # print(Om.shape)
     for i in range(1, m - 1, 1):

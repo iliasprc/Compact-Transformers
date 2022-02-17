@@ -4,7 +4,7 @@ from torch.hub import load_state_dict_from_url
 
 from .utils.grassmanian_models import GrassmanianformerClassifier, ObsMatrixTokenizer
 from .utils.helpers import pe_check
-from .utils.riemmanian_model import RiemmanianformerClassifier
+from .utils.riemmanian_model import RiemmanianformerClassifier,covariance
 from .utils.tokenizer import Tokenizer
 from .utils.transformers import TransformerClassifier
 
@@ -104,6 +104,7 @@ class Late_fusion_img_gm_riem_vit(nn.Module):
     def forward(self, image):
         x = self.tokenizer(image)
         obs_matrix = self.om_layer(x)
+        cov = covariance(x)
 
         img_logits = self.img_classifier(x)
         riemmanian_logits = self.riem_classifier(x)

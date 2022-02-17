@@ -9,7 +9,7 @@ std:
     - 0.2470
     - 0.2435
     - 0.2616
-crop_pct: 0.9
+crop_pct: 0.875
 scale:
     - 0.8
     - 1.0
@@ -29,7 +29,7 @@ batch_size: 128
 lr: 55e-5
 min_lr: 1e-5
 sched: cosine
-weight_decay: 6e-2
+weight_decay: 5e-2
 epochs: 300
 cooldown_epochs: 10
 warmup_epochs: 10

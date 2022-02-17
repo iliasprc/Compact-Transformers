@@ -5,9 +5,33 @@ from functools import partial
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
-from timm.models.vision_transformer import _cfg
+
 import math
 from src.utils.manifold_model import cov_frobenius_norm
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
+
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
+        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
+        'mean': IMAGENET_INCEPTION_MEAN, 'std': IMAGENET_INCEPTION_STD,
+        'first_conv': 'patch_embed.proj', 'classifier': 'head',
+        **kwargs
+    }
+
+def _cfg32(url='', **kwargs):
+    return {
+        'url': url,
+        'num_classes': 1000, 'input_size': (3, 32, 32), 'pool_size': None,
+        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
+        'mean': IMAGENET_INCEPTION_MEAN, 'std': IMAGENET_INCEPTION_STD,
+        'first_conv': 'patch_embed.proj', 'classifier': 'head',
+        **kwargs
+    }
+
+
+
 
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0., linear=False):
@@ -116,12 +140,13 @@ class Attention_Euc_SPD(nn.Module):
             x_ = self.norm(x_)
             x_ = self.act(x_)
             kv = self.kv(x_).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        print(f'kv {kv.shape}')
         k, v = kv[0], kv[1]
 
-        attn_euc = (q @ k.transpose(-2, -1)) * self.scale
-        print(q.shape,k.shape)
-        attn_riemmanian = cov_frobenius_norm(q, k) * self.riem_scale
-
+        #attn_euc = (q @ k.transpose(-2, -1)) * self.scale
+        print(f' q {q.shape} k {k.shape}  v {v.shape} attn_E {attn_euc.shape} ')
+        attn_riemmanian = cov_frobenius_norm(q.transpose(-2, -1), k.transpose(-2, -1)) * self.riem_scale
+        #print(attn_riemmanian.shape)
         attn_ = torch.cat((attn_euc, attn_riemmanian), dim=1)
         attn = self.conv_attn(attn_).softmax(dim=-1)
         attn = self.attn_drop(attn)
@@ -332,6 +357,17 @@ def _conv_filter(state_dict, patch_size=16):
 
     return out_dict
 
+
+
+@register_model
+def manifold_pvt_v2_b0_32(pretrained=False, **kwargs):
+    model = Manifold_PyramidVisionTransformerV2(
+        patch_size=2, embed_dims=[32, 64, 160, 256], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4], qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 2, 2, 2], sr_ratios=[8, 4, 2, 1],
+        **kwargs)
+    model.default_cfg = _cfg32
+
+    return model
 
 @register_model
 def manifold_pvt_v2_b0(pretrained=False, **kwargs):
