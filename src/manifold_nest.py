@@ -106,9 +106,26 @@ class EuclRiemGrassAtt(nn.Module):
         qkv = self.qkv(x).reshape(B, T, N, 3, self.num_heads, C // self.num_heads).permute(3, 0, 4, 1, 2, 5)
         # B, T, N, 3, self.num_heads, C // self.num_heads ->
         # 3, B, H, T, N, C'
-
+        #print(qkv.shape)
         q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
+        #print(q.shape)
+        # q.shape  B, H, T, N, C'
 
+        # old_shape = q.shape
+       # print(q.shape)
+
+        # qgr, _ = grassmanian_point(q)
+        #
+        # kgr, _ = grassmanian_point(k)
+        # # B, H, T, N, C'
+        #
+        # qgr = qgr
+        # # kgr shape B, H, T, C', N
+        # kgr = kgr.permute(0, 1, 2,4,3)
+
+       # dots = torch.matmul(qgr, kgr).unsqueeze(2)
+
+        #attn_grassmman = torch.linalg.norm(dots, dim=2) ** 2. * self.grassman_scale
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn_riemmanian = self.attn_drop(cov_frobenius_norm(q, k) * self.riem_scale)
         #print(attn_riemmanian.shape)
